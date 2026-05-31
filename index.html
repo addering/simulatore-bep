@@ -668,8 +668,8 @@
         for (let i = 0; i <= steps; i++) {
             const dist = Math.round((maxDist / steps) * i);
             labels.push(dist);
-            dataCamion.push(dist * cv1);
-            dataTreno.push(cf + (dist * cv2));
+            dataCamion.push({ x: dist, y: dist * cv1 });
+            dataTreno.push({ x: dist, y: cf + (dist * cv2) });
         }
 
         const pointBEP = bepX > 0 ? [{ x: Math.round(bepX), y: Math.round(bepY) }] : [];
