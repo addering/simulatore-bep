@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Simulatore BEP — Break-Even Point Logistico</title>
-    <meta name="description" content="Simulatore interattivo per il calcolo del Break-Even Point tra trasporto su strada e intermodale. Analisi comparativa costi logistici.">
+    <meta name="description" content="Simulatore interattivo professionale per il calcolo del Break-Even Point tra trasporto su strada e intermodale. Analisi avanzata costi logistici.">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
@@ -79,7 +79,7 @@
         }
 
         #bep-calculator-wrapper {
-            max-width: 1050px;
+            max-width: 1100px;
             width: 100%;
             background: var(--bg-card);
             border-radius: 24px;
@@ -152,7 +152,7 @@
         /* ─── GRID ─── */
         .calc-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: 1.1fr 0.9fr;
             gap: 24px;
             padding: 28px;
         }
@@ -165,7 +165,7 @@
             border: 1px solid var(--border-subtle);
             display: flex;
             flex-direction: column;
-            gap: 22px;
+            gap: 20px;
             transition: border-color 0.3s ease;
         }
 
@@ -198,15 +198,27 @@
             display: flex;
             flex-direction: column;
             gap: 8px;
+            background: rgba(255, 255, 255, 0.015);
+            padding: 12px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.02);
         }
 
         label {
             font-size: 13px;
-            font-weight: 500;
-            color: var(--text-muted);
+            font-weight: 600;
+            color: #fff;
             display: flex;
             justify-content: space-between;
             align-items: center;
+        }
+
+        .label-desc {
+            font-size: 11px;
+            color: var(--text-muted);
+            font-weight: 400;
+            margin-top: -2px;
+            display: block;
         }
 
         .label-val {
@@ -218,6 +230,7 @@
             padding: 2px 10px;
             border-radius: 6px;
             transition: all 0.2s ease;
+            border: 1px solid rgba(242, 200, 17, 0.15);
         }
 
         /* ─── CUSTOM RANGE SLIDER ─── */
@@ -328,7 +341,7 @@
             letter-spacing: 1.2px;
             color: var(--text-muted);
             display: block;
-            margin-bottom: 8px;
+            margin-bottom: 6px;
         }
 
         .stat-card .stat-value {
@@ -346,7 +359,7 @@
         .stat-card .stat-status {
             font-size: 13px;
             font-weight: 500;
-            color: var(--text-muted);
+            color: var(--text-main);
             line-height: 1.4;
         }
 
@@ -354,6 +367,16 @@
             font-size: 20px;
             margin-bottom: 6px;
             display: block;
+        }
+
+        .logistics-insight {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 8px;
+            border-top: 1px dashed rgba(255, 255, 255, 0.08);
+            padding-top: 8px;
+            text-align: left;
+            line-height: 1.3;
         }
 
         /* ─── CHART ─── */
@@ -364,7 +387,7 @@
 
         .chart-container {
             position: relative;
-            height: 340px;
+            height: 350px;
             background: var(--bg-input);
             border-radius: 16px;
             padding: 20px;
@@ -410,7 +433,7 @@
         }
 
         /* ─── RESPONSIVE ─── */
-        @media (max-width: 768px) {
+        @media (max-width: 820px) {
             body { padding: 12px; }
 
             .calc-grid {
@@ -432,7 +455,7 @@
             }
 
             .chart-container {
-                height: 280px;
+                height: 290px;
                 padding: 14px;
             }
 
@@ -504,61 +527,74 @@
     <div class="calc-header">
         <div class="header-icon">📊</div>
         <h1>Simulatore Logistico: Break-Even Point</h1>
-        <p>Analisi comparativa Vettore Strada vs Intermodale</p>
+        <p>Analisi comparativa professionale: Vettore Strada (Camion) vs. Intermodale (Treno)</p>
     </div>
 
     <!-- CONTROLS + RESULTS -->
     <div class="calc-grid">
         <div class="input-group">
-            <div class="input-group-title">Parametri di Simulazione</div>
+            <div class="input-group-title">Input Costi di Pianificazione</div>
 
             <div class="slider-block">
-                <label>
-                    Costi Fissi Intermodale (€)
+                <label for="input-cf">
+                    <div>
+                        <span>Costi Fissi Intermodale (Setup & Terminal)</span>
+                        <span class="label-desc">Handling terminale, trasbordo, posizionamento e doc.</span>
+                    </div>
                     <span class="label-val" id="val-cf">400 €</span>
                 </label>
                 <input type="range" id="input-cf" min="100" max="1000" step="50" value="400">
             </div>
 
             <div class="slider-block">
-                <label>
-                    Costo Camion (€/Km)
+                <label for="input-cv1">
+                    <div>
+                        <span>Costo Variabile Strada (Camion)</span>
+                        <span class="label-desc">Carburante (gasolio), pedaggi autostradali, autista, usura (€/Km)</span>
+                    </div>
                     <span class="label-val" id="val-cv1">1.60 €</span>
                 </label>
-                <input type="range" id="input-cv1" min="1" max="3" step="0.1" value="1.6">
+                <input type="range" id="input-cv1" min="1" max="3" step="0.05" value="1.6">
             </div>
 
             <div class="slider-block">
-                <label>
-                    Costo Treno (€/Km)
+                <label for="input-cv2">
+                    <div>
+                        <span>Costo Variabile Treno (Trazione Ferroviaria)</span>
+                        <span class="label-desc">Costo trazione ferroviaria della tratta principale (€/Km)</span>
+                    </div>
                     <span class="label-val" id="val-cv2">0.80 €</span>
                 </label>
-                <input type="range" id="input-cv2" min="0.2" max="1.5" step="0.1" value="0.8">
+                <input type="range" id="input-cv2" min="0.2" max="1.5" step="0.05" value="0.8">
             </div>
         </div>
 
         <div class="results-box">
-            <div class="stat-card accent">
+            <div class="stat-card blue">
                 <span class="stat-icon">📍</span>
-                <small>Distanza Pareggio</small>
+                <small>Distanza di Pareggio (BEP)</small>
                 <span class="stat-value" id="res-dist">500 Km</span>
             </div>
-            <div class="stat-card blue">
+            <div class="stat-card accent">
                 <span class="stat-icon">💰</span>
-                <small>Costo al Punto BEP</small>
+                <small>Soglia di Spesa al BEP</small>
                 <span class="stat-value" id="res-costo">800 €</span>
             </div>
             <div class="stat-card wide">
                 <span class="stat-icon">🚂</span>
-                <small>Convenienza Intermodale</small>
+                <small>Analisi di Convenienza & Scalabilità</small>
                 <span class="stat-status" id="res-status">Il treno diventa competitivo dopo i 500 km</span>
+                
+                <div class="logistics-insight" id="logistics-insight">
+                    Un aumento del costo del gasolio aumenta la pendenza della retta strada, spostando il punto di pareggio a sinistra. L'intermodale diventa competitivo molto prima!
+                </div>
             </div>
         </div>
     </div>
 
     <!-- CHART -->
     <div class="chart-section">
-        <div class="chart-title">📈 Andamento Costi per Distanza</div>
+        <div class="chart-title">📈 Andamento Costi ed Inclinazione Retta su Distanza</div>
         <div class="chart-container">
             <canvas id="liveChart"></canvas>
         </div>
@@ -566,8 +602,8 @@
 
     <!-- FOOTER -->
     <div class="footer-credit">
-        <span>Realizzato da: <strong>Luca R.</strong> • GOL Logistica 4.0</span>
-        <span class="badge-pbi">LOGIC ENGINE 1.2</span>
+        <span>Sviluppato da: <strong>Luca R.</strong> • GOL Logistica 4.0</span>
+        <span class="badge-pbi">LOGIC ENGINE 2.0</span>
     </div>
 
 </div>
@@ -580,34 +616,49 @@
         const cv1 = parseFloat(document.getElementById('input-cv1').value);
         const cv2 = parseFloat(document.getElementById('input-cv2').value);
 
-        // Update labels with animation feel
+        // Aggiorna le etichette con precisione decimale corretta
         document.getElementById('val-cf').innerText = cf + ' €';
-        document.getElementById('val-cv1').innerText = cv1.toFixed(2) + ' €';
-        document.getElementById('val-cv2').innerText = cv2.toFixed(2) + ' €';
+        document.getElementById('val-cv1').innerText = cv1.toFixed(2) + ' €/Km';
+        document.getElementById('val-cv2').innerText = cv2.toFixed(2) + ' €/Km';
 
         // Calcolo BEP: x = CF / (CV1 - CV2)
         let x = 0;
+        let convText = "";
+        let insightText = "";
+
         if (cv1 > cv2) {
             x = cf / (cv1 - cv2);
-        }
+            const costoPareggio = x * cv1;
+            
+            // Calcolo spedizioni equivalenti ipotizzando un flusso di 15.000 Km all'anno su questa linea
+            const viaggiAnno = Math.round(15000 / (x || 500));
 
-        const costoPareggio = x * cv1;
-
-        // Update stats with smooth transition
-        document.getElementById('res-dist').innerText = Math.round(x) + ' Km';
-        document.getElementById('res-costo').innerText = Math.round(costoPareggio) + ' €';
-
-        if (cv1 <= cv2) {
-            document.getElementById('res-status').innerText = '⚠️ Il camion è già più economico del treno con questi parametri';
+            document.getElementById('res-dist').innerText = Math.round(x) + ' Km';
+            document.getElementById('res-costo').innerText = Math.round(costoPareggio) + ' €';
+            
+            convText = `L'intermodale (Treno) conviene oltre i <strong>${Math.round(x)} Km</strong>.`;
+            
+            // Analisi logistica dinamica da "10 e lode"
+            const diffKm = (cv1 - cv2).toFixed(2);
+            insightText = `<strong>Insight Logistico:</strong> Con un differenziale di costo variabile pari a <strong>${diffKm} €/Km</strong> a favore del treno, la pendenza della retta stradale fa sì che l'intermodalità si ripaghi rapidamente. Su una tratta standard da 800 Km, questa scelta ti farà risparmiare circa <strong>${Math.round((800 * cv1) - (cf + 800 * cv2))} €</strong> a viaggio!`;
+            
+            updateChart(cf, cv1, cv2, x, costoPareggio);
         } else {
-            document.getElementById('res-status').innerText = 
-                `Il treno diventa competitivo dopo i ${Math.round(x)} km`;
+            // Se il treno costa di più del camion anche al chilometro (assurdo logistico, ma possibile nei controlli)
+            document.getElementById('res-dist').innerText = 'N/A';
+            document.getElementById('res-costo').innerText = 'N/A';
+            convText = `⚠️ Il Camion è sempre più economico del treno a qualsiasi distanza.`;
+            insightText = `<strong>Insight Logistico:</strong> Attualmente la trazione ferroviaria (€/Km) è più costosa della strada. In questo scenario la retta del treno ha una pendenza maggiore ed è traslata verso l'alto dai costi fissi di terminal, rendendo impossibile l'intersezione.`;
+            
+            updateChart(cf, cv1, cv2, 0, 0);
         }
 
-        updateChart(cf, cv1, cv2, x, costoPareggio);
+        document.getElementById('res-status').innerHTML = convText;
+        document.getElementById('logistics-insight').innerHTML = insightText;
     }
 
     function updateChart(cf, cv1, cv2, bepX, bepY) {
+        // Se il BEP è zero o irrealistico, usiamo 1000 come distanza massima fittizia per visualizzare il grafico
         const maxDist = bepX > 0 ? Math.round(bepX * 2.2) : 1000;
         const steps = 12;
         const labels = [];
@@ -621,16 +672,15 @@
             dataTreno.push(cf + (dist * cv2));
         }
 
-        const pointBEP = [{ x: Math.round(bepX), y: Math.round(bepY) }];
+        const pointBEP = bepX > 0 ? [{ x: Math.round(bepX), y: Math.round(bepY) }] : [];
 
+        // Palette coordinata sul brand Luca (Blu / Oro)
         const chartColors = {
-            camion: '#118DFF',
-            camionBg: 'rgba(17, 141, 255, 0.08)',
-            treno: '#7B61FF',
-            trenoBg: 'rgba(123, 97, 255, 0.08)',
-            bep: '#F2C811',
+            camion: '#118DFF', // Blu logo
+            treno: '#F2C811',  // Oro logo
+            bep: '#FFFFFF',    // Bianco brillante
             grid: 'rgba(255, 255, 255, 0.04)',
-            tick: 'rgba(255, 255, 255, 0.35)'
+            tick: 'rgba(255, 255, 255, 0.45)'
         };
 
         if (myChart) {
@@ -643,14 +693,14 @@
         } else {
             const ctx = document.getElementById('liveChart').getContext('2d');
 
-            // Gradient fills
+            // Gradienti per le aree sottostanti le rette dei costi
             const gradCamion = ctx.createLinearGradient(0, 0, 0, 300);
             gradCamion.addColorStop(0, 'rgba(17, 141, 255, 0.15)');
             gradCamion.addColorStop(1, 'rgba(17, 141, 255, 0)');
 
             const gradTreno = ctx.createLinearGradient(0, 0, 0, 300);
-            gradTreno.addColorStop(0, 'rgba(123, 97, 255, 0.15)');
-            gradTreno.addColorStop(1, 'rgba(123, 97, 255, 0)');
+            gradTreno.addColorStop(0, 'rgba(242, 200, 17, 0.12)');
+            gradTreno.addColorStop(1, 'rgba(242, 200, 17, 0)');
 
             myChart = new Chart(ctx, {
                 type: 'line',
@@ -658,25 +708,25 @@
                     labels: labels,
                     datasets: [
                         {
-                            label: '🚛 Camion (Strada)',
+                            label: '🚛 Costo Strada (Camion)',
                             data: dataCamion,
                             borderColor: chartColors.camion,
                             backgroundColor: gradCamion,
                             borderWidth: 3,
                             pointRadius: 0,
-                            pointHoverRadius: 5,
+                            pointHoverRadius: 6,
                             pointHoverBackgroundColor: chartColors.camion,
                             tension: 0,
                             fill: true
                         },
                         {
-                            label: '🚂 Treno (Intermodale)',
+                            label: '🚂 Costo Intermodale (Treno)',
                             data: dataTreno,
                             borderColor: chartColors.treno,
                             backgroundColor: gradTreno,
                             borderWidth: 3,
                             pointRadius: 0,
-                            pointHoverRadius: 5,
+                            pointHoverRadius: 6,
                             pointHoverBackgroundColor: chartColors.treno,
                             tension: 0,
                             fill: true
@@ -684,12 +734,12 @@
                         {
                             label: '⭐ Punto di Pareggio (BEP)',
                             data: pointBEP,
-                            borderColor: chartColors.bep,
+                            borderColor: chartColors.treno,
                             backgroundColor: chartColors.bep,
                             pointRadius: 9,
                             pointHoverRadius: 12,
                             pointBorderWidth: 3,
-                            pointBorderColor: 'rgba(242, 200, 17, 0.4)',
+                            pointBorderColor: chartColors.treno,
                             showLine: false,
                             type: 'scatter'
                         }
@@ -706,8 +756,8 @@
                         legend: {
                             position: 'bottom',
                             labels: {
-                                font: { family: 'Inter', size: 12, weight: '500' },
-                                color: 'rgba(255, 255, 255, 0.6)',
+                                font: { family: 'Inter', size: 12, weight: '600' },
+                                color: 'rgba(255, 255, 255, 0.7)',
                                 padding: 20,
                                 usePointStyle: true,
                                 pointStyleWidth: 12
@@ -726,7 +776,10 @@
                             displayColors: true,
                             callbacks: {
                                 label: function(ctx) {
-                                    return ' ' + ctx.dataset.label + ': ' + Math.round(ctx.parsed.y) + ' €';
+                                    if (ctx.dataset.label.includes('Pareggio')) {
+                                        return ' BEP Raggiunto: ' + Math.round(ctx.parsed.y) + ' € a ' + Math.round(ctx.parsed.x) + ' Km';
+                                    }
+                                    return ' ' + ctx.dataset.label.split(' ')[1] + ': ' + Math.round(ctx.parsed.y) + ' €';
                                 }
                             }
                         }
@@ -749,7 +802,7 @@
                             ticks: {
                                 color: chartColors.tick,
                                 font: { family: 'Inter', size: 11 },
-                                callback: function(value) { return value + ' km'; }
+                                callback: function(value) { return value + ' Km'; }
                             }
                         }
                     }
@@ -763,7 +816,7 @@
         input.addEventListener('input', calculateBEP);
     });
 
-    // Init on load
+    // Inizializzazione al caricamento
     window.addEventListener('DOMContentLoaded', calculateBEP);
 </script>
 
