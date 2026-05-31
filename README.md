@@ -1,4 +1,4 @@
-<![CDATA[<div align="center">
+<div align="center">
 
 # 📊 Logistics Simulator — Break-Even Point
 
@@ -48,6 +48,7 @@ Where:
 - **Cost per Km (Train)** = Variable cost of the rail leg in intermodal transport
 
 ### Key Insight
+
 Beyond the break-even distance, every additional kilometer makes intermodal transport increasingly cheaper than road-only — a critical factor for long-haul supply chain planning.
 
 ---
@@ -158,4 +159,3 @@ This project is open source and available under the [MIT License](LICENSE).
 *By Luca R. — Transitioning 30+ years of IT expertise into data-driven supply chain solutions.*
 
 </div>
-]]>
