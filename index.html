@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulatore BEP — Break-Even Point Logistico</title>
+    <meta name="description" content="Simulatore interattivo per il calcolo del Break-Even Point tra trasporto su strada e intermodale. Analisi comparativa costi logistici.">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        *,
+        *::before,
+        *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --pbi-blue: #118DFF;
+            --pbi-blue-glow: rgba(17, 141, 255, 0.25);
+            --pbi-dark: #12239E;
+            --pbi-accent: #F2C811;
+            --pbi-accent-glow: rgba(242, 200, 17, 0.3);
+            --text-main: #e8eaed;
+            --text-muted: #9aa0a6;
+            --bg-body: #0a0e1a;
+            --bg-card: rgba(18, 22, 40, 0.85);
+            --bg-input: rgba(30, 36, 60, 0.7);
+            --border-subtle: rgba(255, 255, 255, 0.06);
+            --border-glow: rgba(17, 141, 255, 0.15);
+            --glass-bg: rgba(255, 255, 255, 0.03);
+            --shadow-deep: 0 25px 60px rgba(0, 0, 0, 0.5), 0 0 80px rgba(17, 141, 255, 0.08);
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-body);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            overflow-x: hidden;
+        }
+
+        /* Animated background */
+        body::before {
+            content: '';
+            position: fixed;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: 
+                radial-gradient(ellipse at 20% 50%, rgba(17, 141, 255, 0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 20%, rgba(18, 35, 158, 0.1) 0%, transparent 50%),
+                radial-gradient(ellipse at 60% 80%, rgba(242, 200, 17, 0.04) 0%, transparent 50%);
+            animation: bgShift 20s ease-in-out infinite alternate;
+            z-index: -1;
+        }
+
+        @keyframes bgShift {
+            0% { transform: translate(0, 0) rotate(0deg); }
+            100% { transform: translate(-3%, -3%) rotate(3deg); }
+        }
+
+        /* Grid pattern overlay */
+        body::after {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image: 
+                linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px);
+            background-size: 60px 60px;
+            z-index: -1;
+        }
+
+        #bep-calculator-wrapper {
+            max-width: 1050px;
+            width: 100%;
+            background: var(--bg-card);
+            border-radius: 24px;
+            box-shadow: var(--shadow-deep);
+            border: 1px solid var(--border-subtle);
+            overflow: hidden;
+            backdrop-filter: blur(40px);
+            -webkit-backdrop-filter: blur(40px);
+            animation: cardEntry 0.8s cubic-bezier(0.16, 1, 0.3, 1) both;
+        }
+
+        @keyframes cardEntry {
+            0% { opacity: 0; transform: translateY(40px) scale(0.97); }
+            100% { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        /* ─── HEADER ─── */
+        .calc-header {
+            padding: 32px 32px 28px;
+            text-align: center;
+            position: relative;
+            border-bottom: 1px solid var(--border-subtle);
+            background: linear-gradient(180deg, rgba(17, 141, 255, 0.06) 0%, transparent 100%);
+        }
+
+        .calc-header::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 120px;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--pbi-blue), transparent);
+        }
+
+        .header-icon {
+            width: 48px;
+            height: 48px;
+            margin: 0 auto 16px;
+            background: linear-gradient(135deg, var(--pbi-blue), var(--pbi-dark));
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            box-shadow: 0 8px 24px rgba(17, 141, 255, 0.25);
+            animation: iconPulse 3s ease-in-out infinite;
+        }
+
+        @keyframes iconPulse {
+            0%, 100% { box-shadow: 0 8px 24px rgba(17, 141, 255, 0.25); }
+            50% { box-shadow: 0 8px 32px rgba(17, 141, 255, 0.4); }
+        }
+
+        .calc-header h1 {
+            font-size: 24px;
+            font-weight: 800;
+            color: #fff;
+            letter-spacing: -0.5px;
+            margin-bottom: 6px;
+        }
+
+        .calc-header p {
+            font-size: 14px;
+            color: var(--text-muted);
+            font-weight: 400;
+        }
+
+        /* ─── GRID ─── */
+        .calc-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            padding: 28px;
+        }
+
+        /* ─── INPUT GROUP ─── */
+        .input-group {
+            background: var(--bg-input);
+            padding: 24px;
+            border-radius: 16px;
+            border: 1px solid var(--border-subtle);
+            display: flex;
+            flex-direction: column;
+            gap: 22px;
+            transition: border-color 0.3s ease;
+        }
+
+        .input-group:hover {
+            border-color: var(--border-glow);
+        }
+
+        .input-group-title {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--pbi-blue);
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .input-group-title::before {
+            content: '';
+            width: 8px;
+            height: 8px;
+            background: var(--pbi-blue);
+            border-radius: 50%;
+            box-shadow: 0 0 8px var(--pbi-blue-glow);
+        }
+
+        .slider-block {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        label {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-muted);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .label-val {
+            color: var(--pbi-accent);
+            font-weight: 700;
+            font-size: 14px;
+            font-variant-numeric: tabular-nums;
+            background: rgba(242, 200, 17, 0.08);
+            padding: 2px 10px;
+            border-radius: 6px;
+            transition: all 0.2s ease;
+        }
+
+        /* ─── CUSTOM RANGE SLIDER ─── */
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 100px;
+            outline: none;
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+
+        input[type="range"]:hover {
+            background: rgba(255, 255, 255, 0.12);
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            background: linear-gradient(135deg, var(--pbi-blue), #2a7fff);
+            border-radius: 50%;
+            cursor: grab;
+            box-shadow: 0 2px 10px rgba(17, 141, 255, 0.4), 0 0 0 4px rgba(17, 141, 255, 0.1);
+            transition: box-shadow 0.2s ease, transform 0.15s ease;
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.15);
+            box-shadow: 0 2px 16px rgba(17, 141, 255, 0.6), 0 0 0 6px rgba(17, 141, 255, 0.15);
+        }
+
+        input[type="range"]::-webkit-slider-thumb:active {
+            cursor: grabbing;
+            transform: scale(1.1);
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            background: linear-gradient(135deg, var(--pbi-blue), #2a7fff);
+            border-radius: 50%;
+            cursor: grab;
+            border: none;
+            box-shadow: 0 2px 10px rgba(17, 141, 255, 0.4), 0 0 0 4px rgba(17, 141, 255, 0.1);
+        }
+
+        /* ─── RESULTS ─── */
+        .results-box {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+            align-content: start;
+        }
+
+        .stat-card {
+            background: var(--glass-bg);
+            padding: 20px 16px;
+            border-radius: 14px;
+            border: 1px solid var(--border-subtle);
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+            border-color: var(--border-glow);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            border-radius: 3px 3px 0 0;
+        }
+
+        .stat-card.accent::before {
+            background: linear-gradient(90deg, var(--pbi-accent), #ffdf5e);
+        }
+
+        .stat-card.blue::before {
+            background: linear-gradient(90deg, var(--pbi-blue), #5eaaff);
+        }
+
+        .stat-card.wide {
+            grid-column: span 2;
+            background: linear-gradient(135deg, rgba(17, 141, 255, 0.06), rgba(18, 35, 158, 0.08));
+        }
+
+        .stat-card.wide::before {
+            background: linear-gradient(90deg, var(--pbi-blue), var(--pbi-accent));
+        }
+
+        .stat-card small {
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            color: var(--text-muted);
+            display: block;
+            margin-bottom: 8px;
+        }
+
+        .stat-card .stat-value {
+            font-size: 26px;
+            font-weight: 800;
+            color: #fff;
+            display: block;
+            font-variant-numeric: tabular-nums;
+            line-height: 1.2;
+        }
+
+        .stat-card.accent .stat-value { color: var(--pbi-accent); }
+        .stat-card.blue .stat-value { color: var(--pbi-blue); }
+
+        .stat-card .stat-status {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-muted);
+            line-height: 1.4;
+        }
+
+        .stat-icon {
+            font-size: 20px;
+            margin-bottom: 6px;
+            display: block;
+        }
+
+        /* ─── CHART ─── */
+        .chart-section {
+            padding: 8px 28px 28px;
+            position: relative;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 340px;
+            background: var(--bg-input);
+            border-radius: 16px;
+            padding: 20px;
+            border: 1px solid var(--border-subtle);
+        }
+
+        .chart-title {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+            padding-left: 4px;
+        }
+
+        /* ─── FOOTER ─── */
+        .footer-credit {
+            padding: 16px 28px;
+            font-size: 12px;
+            color: var(--text-muted);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-top: 1px solid var(--border-subtle);
+            background: rgba(0, 0, 0, 0.15);
+        }
+
+        .footer-credit strong {
+            color: var(--text-main);
+        }
+
+        .badge-pbi {
+            background: linear-gradient(135deg, var(--pbi-accent), #ffe066);
+            color: #1a1400;
+            padding: 4px 12px;
+            border-radius: 6px;
+            font-weight: 800;
+            font-size: 10px;
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+            box-shadow: 0 2px 8px var(--pbi-accent-glow);
+        }
+
+        /* ─── RESPONSIVE ─── */
+        @media (max-width: 768px) {
+            body { padding: 12px; }
+
+            .calc-grid {
+                grid-template-columns: 1fr;
+                gap: 16px;
+                padding: 16px;
+            }
+
+            .calc-header {
+                padding: 24px 16px 20px;
+            }
+
+            .calc-header h1 {
+                font-size: 20px;
+            }
+
+            .chart-section {
+                padding: 8px 16px 16px;
+            }
+
+            .chart-container {
+                height: 280px;
+                padding: 14px;
+            }
+
+            .stat-card .stat-value {
+                font-size: 22px;
+            }
+
+            .footer-credit {
+                padding: 14px 16px;
+                flex-direction: column;
+                gap: 8px;
+                text-align: center;
+            }
+
+            .results-box {
+                gap: 10px;
+            }
+
+            .input-group {
+                padding: 18px;
+            }
+        }
+
+        @media (max-width: 400px) {
+            .results-box {
+                grid-template-columns: 1fr;
+            }
+
+            .stat-card.wide {
+                grid-column: span 1;
+            }
+
+            .calc-header h1 {
+                font-size: 18px;
+            }
+        }
+
+        /* ─── ANIMATIONS ─── */
+        .stat-card {
+            animation: statReveal 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+        }
+        .stat-card:nth-child(1) { animation-delay: 0.15s; }
+        .stat-card:nth-child(2) { animation-delay: 0.25s; }
+        .stat-card:nth-child(3) { animation-delay: 0.35s; }
+
+        @keyframes statReveal {
+            0% { opacity: 0; transform: translateY(16px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+
+        .slider-block {
+            animation: slideIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+        }
+        .slider-block:nth-child(2) { animation-delay: 0.1s; }
+        .slider-block:nth-child(3) { animation-delay: 0.2s; }
+        .slider-block:nth-child(4) { animation-delay: 0.3s; }
+
+        @keyframes slideIn {
+            0% { opacity: 0; transform: translateX(-12px); }
+            100% { opacity: 1; transform: translateX(0); }
+        }
+    </style>
+</head>
+<body>
+
+<div id="bep-calculator-wrapper">
+
+    <!-- HEADER -->
+    <div class="calc-header">
+        <div class="header-icon">📊</div>
+        <h1>Simulatore Logistico: Break-Even Point</h1>
+        <p>Analisi comparativa Vettore Strada vs Intermodale</p>
+    </div>
+
+    <!-- CONTROLS + RESULTS -->
+    <div class="calc-grid">
+        <div class="input-group">
+            <div class="input-group-title">Parametri di Simulazione</div>
+
+            <div class="slider-block">
+                <label>
+                    Costi Fissi Intermodale (€)
+                    <span class="label-val" id="val-cf">400 €</span>
+                </label>
+                <input type="range" id="input-cf" min="100" max="1000" step="50" value="400">
+            </div>
+
+            <div class="slider-block">
+                <label>
+                    Costo Camion (€/Km)
+                    <span class="label-val" id="val-cv1">1.60 €</span>
+                </label>
+                <input type="range" id="input-cv1" min="1" max="3" step="0.1" value="1.6">
+            </div>
+
+            <div class="slider-block">
+                <label>
+                    Costo Treno (€/Km)
+                    <span class="label-val" id="val-cv2">0.80 €</span>
+                </label>
+                <input type="range" id="input-cv2" min="0.2" max="1.5" step="0.1" value="0.8">
+            </div>
+        </div>
+
+        <div class="results-box">
+            <div class="stat-card accent">
+                <span class="stat-icon">📍</span>
+                <small>Distanza Pareggio</small>
+                <span class="stat-value" id="res-dist">500 Km</span>
+            </div>
+            <div class="stat-card blue">
+                <span class="stat-icon">💰</span>
+                <small>Costo al Punto BEP</small>
+                <span class="stat-value" id="res-costo">800 €</span>
+            </div>
+            <div class="stat-card wide">
+                <span class="stat-icon">🚂</span>
+                <small>Convenienza Intermodale</small>
+                <span class="stat-status" id="res-status">Il treno diventa competitivo dopo i 500 km</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- CHART -->
+    <div class="chart-section">
+        <div class="chart-title">📈 Andamento Costi per Distanza</div>
+        <div class="chart-container">
+            <canvas id="liveChart"></canvas>
+        </div>
+    </div>
+
+    <!-- FOOTER -->
+    <div class="footer-credit">
+        <span>Realizzato da: <strong>Luca R.</strong> • GOL Logistica 4.0</span>
+        <span class="badge-pbi">LOGIC ENGINE 1.2</span>
+    </div>
+
+</div>
+
+<script>
+    let myChart;
+
+    function calculateBEP() {
+        const cf = parseFloat(document.getElementById('input-cf').value);
+        const cv1 = parseFloat(document.getElementById('input-cv1').value);
+        const cv2 = parseFloat(document.getElementById('input-cv2').value);
+
+        // Update labels with animation feel
+        document.getElementById('val-cf').innerText = cf + ' €';
+        document.getElementById('val-cv1').innerText = cv1.toFixed(2) + ' €';
+        document.getElementById('val-cv2').innerText = cv2.toFixed(2) + ' €';
+
+        // Calcolo BEP: x = CF / (CV1 - CV2)
+        let x = 0;
+        if (cv1 > cv2) {
+            x = cf / (cv1 - cv2);
+        }
+
+        const costoPareggio = x * cv1;
+
+        // Update stats with smooth transition
+        document.getElementById('res-dist').innerText = Math.round(x) + ' Km';
+        document.getElementById('res-costo').innerText = Math.round(costoPareggio) + ' €';
+
+        if (cv1 <= cv2) {
+            document.getElementById('res-status').innerText = '⚠️ Il camion è già più economico del treno con questi parametri';
+        } else {
+            document.getElementById('res-status').innerText = 
+                `Il treno diventa competitivo dopo i ${Math.round(x)} km`;
+        }
+
+        updateChart(cf, cv1, cv2, x, costoPareggio);
+    }
+
+    function updateChart(cf, cv1, cv2, bepX, bepY) {
+        const maxDist = bepX > 0 ? Math.round(bepX * 2.2) : 1000;
+        const steps = 12;
+        const labels = [];
+        const dataCamion = [];
+        const dataTreno = [];
+
+        for (let i = 0; i <= steps; i++) {
+            const dist = Math.round((maxDist / steps) * i);
+            labels.push(dist);
+            dataCamion.push(dist * cv1);
+            dataTreno.push(cf + (dist * cv2));
+        }
+
+        const pointBEP = [{ x: Math.round(bepX), y: Math.round(bepY) }];
+
+        const chartColors = {
+            camion: '#118DFF',
+            camionBg: 'rgba(17, 141, 255, 0.08)',
+            treno: '#7B61FF',
+            trenoBg: 'rgba(123, 97, 255, 0.08)',
+            bep: '#F2C811',
+            grid: 'rgba(255, 255, 255, 0.04)',
+            tick: 'rgba(255, 255, 255, 0.35)'
+        };
+
+        if (myChart) {
+            myChart.data.labels = labels;
+            myChart.data.datasets[0].data = dataCamion;
+            myChart.data.datasets[1].data = dataTreno;
+            myChart.data.datasets[2].data = pointBEP;
+            myChart.options.scales.x.max = maxDist;
+            myChart.update('none');
+        } else {
+            const ctx = document.getElementById('liveChart').getContext('2d');
+
+            // Gradient fills
+            const gradCamion = ctx.createLinearGradient(0, 0, 0, 300);
+            gradCamion.addColorStop(0, 'rgba(17, 141, 255, 0.15)');
+            gradCamion.addColorStop(1, 'rgba(17, 141, 255, 0)');
+
+            const gradTreno = ctx.createLinearGradient(0, 0, 0, 300);
+            gradTreno.addColorStop(0, 'rgba(123, 97, 255, 0.15)');
+            gradTreno.addColorStop(1, 'rgba(123, 97, 255, 0)');
+
+            myChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: '🚛 Camion (Strada)',
+                            data: dataCamion,
+                            borderColor: chartColors.camion,
+                            backgroundColor: gradCamion,
+                            borderWidth: 3,
+                            pointRadius: 0,
+                            pointHoverRadius: 5,
+                            pointHoverBackgroundColor: chartColors.camion,
+                            tension: 0,
+                            fill: true
+                        },
+                        {
+                            label: '🚂 Treno (Intermodale)',
+                            data: dataTreno,
+                            borderColor: chartColors.treno,
+                            backgroundColor: gradTreno,
+                            borderWidth: 3,
+                            pointRadius: 0,
+                            pointHoverRadius: 5,
+                            pointHoverBackgroundColor: chartColors.treno,
+                            tension: 0,
+                            fill: true
+                        },
+                        {
+                            label: '⭐ Punto di Pareggio (BEP)',
+                            data: pointBEP,
+                            borderColor: chartColors.bep,
+                            backgroundColor: chartColors.bep,
+                            pointRadius: 9,
+                            pointHoverRadius: 12,
+                            pointBorderWidth: 3,
+                            pointBorderColor: 'rgba(242, 200, 17, 0.4)',
+                            showLine: false,
+                            type: 'scatter'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                font: { family: 'Inter', size: 12, weight: '500' },
+                                color: 'rgba(255, 255, 255, 0.6)',
+                                padding: 20,
+                                usePointStyle: true,
+                                pointStyleWidth: 12
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(10, 14, 26, 0.95)',
+                            titleFont: { family: 'Inter', size: 13, weight: '700' },
+                            bodyFont: { family: 'Inter', size: 12 },
+                            titleColor: '#fff',
+                            bodyColor: 'rgba(255,255,255,0.7)',
+                            borderColor: 'rgba(255,255,255,0.1)',
+                            borderWidth: 1,
+                            padding: 14,
+                            cornerRadius: 10,
+                            displayColors: true,
+                            callbacks: {
+                                label: function(ctx) {
+                                    return ' ' + ctx.dataset.label + ': ' + Math.round(ctx.parsed.y) + ' €';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: chartColors.grid, drawBorder: false },
+                            ticks: {
+                                color: chartColors.tick,
+                                font: { family: 'Inter', size: 11 },
+                                callback: function(value) { return value + ' €'; }
+                            }
+                        },
+                        x: {
+                            type: 'linear',
+                            position: 'bottom',
+                            max: maxDist,
+                            grid: { display: false },
+                            ticks: {
+                                color: chartColors.tick,
+                                font: { family: 'Inter', size: 11 },
+                                callback: function(value) { return value + ' km'; }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    }
+
+    // Event Listeners
+    document.querySelectorAll('input[type="range"]').forEach(input => {
+        input.addEventListener('input', calculateBEP);
+    });
+
+    // Init on load
+    window.addEventListener('DOMContentLoaded', calculateBEP);
+</script>
+
+</body>
+</html>
