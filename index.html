@@ -5,9 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Simulatore BEP — Break-Even Point Logistico</title>
     <meta name="description" content="Simulatore interattivo professionale per il calcolo del Break-Even Point tra trasporto su strada e intermodale. Analisi avanzata costi logistici.">
+    
+    <!-- 
+      LIBRERIE ESTERNE:
+      1. Carichiamo Chart.js per disegnare il grafico interattivo senza doverlo programmare da zero in Canvas.
+      2. Importiamo il font 'Inter' da Google Fonts: molto moderno, pulito ed elegante (usato nei software professionali).
+    -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
     <style>
+        /* RESET BASE: Azzanniamo i margini e i pad di default del browser per avere il controllo totale del layout */
         *,
         *::before,
         *::after {
@@ -16,17 +24,22 @@
             box-sizing: border-box;
         }
 
+        /* 
+          COLORI E VARIABILI DEL BRAND (BLU & ORO):
+          Se un giorno vuoi cambiare i colori di tutto il sito, ti basta modificare questi codici HEX qui sotto.
+          Tutto il resto della pagina si adatterà da solo!
+        */
         :root {
-            --pbi-blue: #118DFF;
+            --pbi-blue: #118DFF;                    /* Il blu brillante principale del nostro logo */
             --pbi-blue-glow: rgba(17, 141, 255, 0.25);
-            --pbi-dark: #12239E;
-            --pbi-accent: #F2C811;
+            --pbi-dark: #12239E;                    /* Un blu scuro di contrasto per le ombre e i dettagli */
+            --pbi-accent: #F2C811;                  /* L'oro/giallo del logo per attirare l'attenzione sui dati chiave */
             --pbi-accent-glow: rgba(242, 200, 17, 0.3);
-            --text-main: #e8eaed;
-            --text-muted: #9aa0a6;
-            --bg-body: #0a0e1a;
-            --bg-card: rgba(18, 22, 40, 0.85);
-            --bg-input: rgba(30, 36, 60, 0.7);
+            --text-main: #e8eaed;                   /* Bianco grigiastro per non affaticare gli occhi (Dark Mode) */
+            --text-muted: #9aa0a6;                  /* Grigio spento per le descrizioni e i testi secondari */
+            --bg-body: #0a0e1a;                     /* Sfondo scuro e profondo, stile cruscotto digitale */
+            --bg-card: rgba(18, 22, 40, 0.85);      /* Vetro scuro per le schede */
+            --bg-input: rgba(30, 36, 60, 0.7);      /* Sfondo per i blocchi degli slider */
             --border-subtle: rgba(255, 255, 255, 0.06);
             --border-glow: rgba(17, 141, 255, 0.15);
             --glass-bg: rgba(255, 255, 255, 0.03);
@@ -45,7 +58,11 @@
             overflow-x: hidden;
         }
 
-        /* Animated background */
+        /* 
+          SFONDO ANIMATO CON GRADIENTI (IL TOCCO DA 10 E LODE):
+          Crea tre sfere luminose sfocate (blu, blu scuro e oro) che si muovono lentamente nello sfondo,
+          dando una sensazione di profondità e design premium.
+        */
         body::before {
             content: '';
             position: fixed;
@@ -66,7 +83,10 @@
             100% { transform: translate(-3%, -3%) rotate(3deg); }
         }
 
-        /* Grid pattern overlay */
+        /* 
+          GRIGLIA DI SFONDO (RETICOLO):
+          Aggiunge una finissima griglia geometrica trasparente sopra lo sfondo per ricordare i fogli millimetrati tecnici.
+        */
         body::after {
             content: '';
             position: fixed;
@@ -78,6 +98,7 @@
             z-index: -1;
         }
 
+        /* IL CONTENITORE PRINCIPALE (GLASSMORPHISM EFFECT) */
         #bep-calculator-wrapper {
             max-width: 1100px;
             width: 100%;
@@ -86,7 +107,7 @@
             box-shadow: var(--shadow-deep);
             border: 1px solid var(--border-subtle);
             overflow: hidden;
-            backdrop-filter: blur(40px);
+            backdrop-filter: blur(40px); /* Sfoca lo sfondo dietro la scheda, come un vetro satinato */
             -webkit-backdrop-filter: blur(40px);
             animation: cardEntry 0.8s cubic-bezier(0.16, 1, 0.3, 1) both;
         }
@@ -96,7 +117,7 @@
             100% { opacity: 1; transform: translateY(0) scale(1); }
         }
 
-        /* ─── HEADER ─── */
+        /* HEADER DEL SIMULATORE */
         .calc-header {
             padding: 32px 32px 28px;
             text-align: center;
@@ -149,7 +170,11 @@
             font-weight: 400;
         }
 
-        /* ─── GRID ─── */
+        /* 
+          CSS GRID LAYOUT:
+          Su desktop divide la pagina in due colonne (60% controlli a sinistra, 40% risultati a destra).
+          Su dispositivi mobili vedrai nelle media-queries in fondo come lo trasformiamo in colonna singola.
+        */
         .calc-grid {
             display: grid;
             grid-template-columns: 1.1fr 0.9fr;
@@ -157,7 +182,7 @@
             padding: 28px;
         }
 
-        /* ─── INPUT GROUP ─── */
+        /* COLONNA INPUT (SLIDERS) */
         .input-group {
             background: var(--bg-input);
             padding: 24px;
@@ -170,7 +195,7 @@
         }
 
         .input-group:hover {
-            border-color: var(--border-glow);
+            border-color: var(--border-glow); /* Si illumina leggermente quando ci passi sopra col mouse */
         }
 
         .input-group-title {
@@ -194,6 +219,7 @@
             box-shadow: 0 0 8px var(--pbi-blue-glow);
         }
 
+        /* BLOCCO SLIDER SINGOLO */
         .slider-block {
             display: flex;
             flex-direction: column;
@@ -213,6 +239,7 @@
             align-items: center;
         }
 
+        /* Sottotitoli esplicativi per i parametri logistici reali */
         .label-desc {
             font-size: 11px;
             color: var(--text-muted);
@@ -221,11 +248,12 @@
             display: block;
         }
 
+        /* Il badge che mostra il valore numerico dello slider */
         .label-val {
-            color: var(--pbi-accent);
+            color: var(--pbi-accent); /* Colore oro */
             font-weight: 700;
             font-size: 14px;
-            font-variant-numeric: tabular-nums;
+            font-variant-numeric: tabular-nums; /* Evita che i numeri ballino quando si muove lo slider */
             background: rgba(242, 200, 17, 0.08);
             padding: 2px 10px;
             border-radius: 6px;
@@ -233,7 +261,10 @@
             border: 1px solid rgba(242, 200, 17, 0.15);
         }
 
-        /* ─── CUSTOM RANGE SLIDER ─── */
+        /* 
+          PERSONALIZZAZIONE DEGLI SLIDER (RANGE INPUTS):
+          Rendiamo la barra del cursore rotonda, blu lucida e reattiva al passaggio del mouse.
+        */
         input[type="range"] {
             -webkit-appearance: none;
             appearance: none;
@@ -250,6 +281,7 @@
             background: rgba(255, 255, 255, 0.12);
         }
 
+        /* Il pallino dello slider (per browser basati su Webkit/Blink come Chrome, Safari, Edge) */
         input[type="range"]::-webkit-slider-thumb {
             -webkit-appearance: none;
             appearance: none;
@@ -269,9 +301,9 @@
 
         input[type="range"]::-webkit-slider-thumb:active {
             cursor: grabbing;
-            transform: scale(1.1);
         }
 
+        /* Il pallino dello slider (per Firefox) */
         input[type="range"]::-moz-range-thumb {
             width: 20px;
             height: 20px;
@@ -282,7 +314,7 @@
             box-shadow: 0 2px 10px rgba(17, 141, 255, 0.4), 0 0 0 4px rgba(17, 141, 255, 0.1);
         }
 
-        /* ─── RESULTS ─── */
+        /* COLONNA RISULTATI (STAT CARDS) */
         .results-box {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -307,6 +339,7 @@
             box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
         }
 
+        /* Finitura colorata in testa alle card per separarle visivamente */
         .stat-card::before {
             content: '';
             position: absolute;
@@ -318,13 +351,14 @@
         }
 
         .stat-card.accent::before {
-            background: linear-gradient(90deg, var(--pbi-accent), #ffdf5e);
+            background: linear-gradient(90deg, var(--pbi-accent), #ffdf5e); /* Bordo superiore Oro */
         }
 
         .stat-card.blue::before {
-            background: linear-gradient(90deg, var(--pbi-blue), #5eaaff);
+            background: linear-gradient(90deg, var(--pbi-blue), #5eaaff);   /* Bordo superiore Blu */
         }
 
+        /* La card grande inferiore occupa entrambe le colonne */
         .stat-card.wide {
             grid-column: span 2;
             background: linear-gradient(135deg, rgba(17, 141, 255, 0.06), rgba(18, 35, 158, 0.08));
@@ -369,6 +403,11 @@
             display: block;
         }
 
+        /* 
+          IL BOX DELL'INSIGHT LOGISTICO DINAMICO:
+          È una sezione in cui andiamo a scrivere delle spiegazioni dettagliate sui costi reali 
+          e sul risparmio calcolato in base alle tratte reali. Ottimo per far capire il risvolto pratico del BEP.
+        */
         .logistics-insight {
             font-size: 11px;
             color: var(--text-muted);
@@ -379,7 +418,7 @@
             line-height: 1.3;
         }
 
-        /* ─── CHART ─── */
+        /* SEZIONE DEL GRAFICO */
         .chart-section {
             padding: 8px 28px 28px;
             position: relative;
@@ -404,7 +443,7 @@
             padding-left: 4px;
         }
 
-        /* ─── FOOTER ─── */
+        /* PIÈ DI PAGINA (FOOTER CON CREDITI) */
         .footer-credit {
             padding: 16px 28px;
             font-size: 12px;
@@ -432,7 +471,11 @@
             box-shadow: 0 2px 8px var(--pbi-accent-glow);
         }
 
-        /* ─── RESPONSIVE ─── */
+        /* 
+          MEDIA-QUERIES (RESPONSIVENESS):
+          Se lo schermo è inferiore a 820px (tablet o telefoni in verticale),
+          il layout a due colonne diventa ad una sola colonna per impilare tutto in modo perfetto e leggibile.
+        */
         @media (max-width: 820px) {
             body { padding: 12px; }
 
@@ -493,7 +536,7 @@
             }
         }
 
-        /* ─── ANIMATIONS ─── */
+        /* ANIMAZIONI DI INGRESSO (CARTE E ELEMENTI) */
         .stat-card {
             animation: statReveal 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
         }
@@ -523,18 +566,21 @@
 
 <div id="bep-calculator-wrapper">
 
-    <!-- HEADER -->
+    <!-- INTESTAZIONE -->
     <div class="calc-header">
         <div class="header-icon">📊</div>
         <h1>Simulatore Logistico: Break-Even Point</h1>
         <p>Analisi comparativa professionale: Vettore Strada (Camion) vs. Intermodale (Treno)</p>
     </div>
 
-    <!-- CONTROLS + RESULTS -->
+    <!-- CONTROLLI A SINISTRA + RISULTATI A DESTRA -->
     <div class="calc-grid">
+        
+        <!-- SEZIONE INPUT (GLI SLIDER) -->
         <div class="input-group">
             <div class="input-group-title">Input Costi di Pianificazione</div>
 
+            <!-- SLIDER 1: Costi Fissi Intermodale -->
             <div class="slider-block">
                 <label for="input-cf">
                     <div>
@@ -546,45 +592,55 @@
                 <input type="range" id="input-cf" min="100" max="1000" step="50" value="400">
             </div>
 
+            <!-- SLIDER 2: Costo Variabile Strada -->
             <div class="slider-block">
                 <label for="input-cv1">
                     <div>
                         <span>Costo Variabile Strada (Camion)</span>
                         <span class="label-desc">Carburante (gasolio), pedaggi autostradali, autista, usura (€/Km)</span>
                     </div>
-                    <span class="label-val" id="val-cv1">1.60 €</span>
+                    <span class="label-val" id="val-cv1">1.60 €/Km</span>
                 </label>
                 <input type="range" id="input-cv1" min="1" max="3" step="0.05" value="1.6">
             </div>
 
+            <!-- SLIDER 3: Costo Variabile Treno -->
             <div class="slider-block">
                 <label for="input-cv2">
                     <div>
                         <span>Costo Variabile Treno (Trazione Ferroviaria)</span>
                         <span class="label-desc">Costo trazione ferroviaria della tratta principale (€/Km)</span>
                     </div>
-                    <span class="label-val" id="val-cv2">0.80 €</span>
+                    <span class="label-val" id="val-cv2">0.80 €/Km</span>
                 </label>
                 <input type="range" id="input-cv2" min="0.2" max="1.5" step="0.05" value="0.8">
             </div>
         </div>
 
+        <!-- SEZIONE OUTPUT (LE SCHEDE DEI RISULTATI CALCOLATI) -->
         <div class="results-box">
+            
+            <!-- CARD 1: Distanza di Pareggio -->
             <div class="stat-card blue">
                 <span class="stat-icon">📍</span>
                 <small>Distanza di Pareggio (BEP)</small>
                 <span class="stat-value" id="res-dist">500 Km</span>
             </div>
+            
+            <!-- CARD 2: Costo alla soglia del BEP -->
             <div class="stat-card accent">
                 <span class="stat-icon">💰</span>
                 <small>Soglia di Spesa al BEP</small>
                 <span class="stat-value" id="res-costo">800 €</span>
             </div>
+            
+            <!-- CARD 3: Dettaglio didattico e logistico dinamico -->
             <div class="stat-card wide">
                 <span class="stat-icon">🚂</span>
                 <small>Analisi di Convenienza & Scalabilità</small>
                 <span class="stat-status" id="res-status">Il treno diventa competitivo dopo i 500 km</span>
                 
+                <!-- Il paragrafo sotto viene aggiornato dinamicamente via JS spiegando le pendenze -->
                 <div class="logistics-insight" id="logistics-insight">
                     Un aumento del costo del gasolio aumenta la pendenza della retta strada, spostando il punto di pareggio a sinistra. L'intermodale diventa competitivo molto prima!
                 </div>
@@ -592,7 +648,7 @@
         </div>
     </div>
 
-    <!-- CHART -->
+    <!-- SEZIONE DEL GRAFICO INTERATTIVO -->
     <div class="chart-section">
         <div class="chart-title">📈 Andamento Costi ed Inclinazione Retta su Distanza</div>
         <div class="chart-container">
@@ -600,7 +656,7 @@
         </div>
     </div>
 
-    <!-- FOOTER -->
+    <!-- CREDITI IN CODA -->
     <div class="footer-credit">
         <span>Sviluppato da: <strong>Luca R.</strong> • GOL Logistica 4.0</span>
         <span class="badge-pbi">LOGIC ENGINE 2.0</span>
@@ -608,43 +664,68 @@
 
 </div>
 
+<!-- 
+  IL CERVELLO DEL SIMULATORE (JAVASCRIPT):
+  Qui scriviamo il codice che fa i calcoli matematici logistici ed aggiorna il grafico in tempo reale.
+-->
 <script>
+    // Definiamo una variabile globale per contenere l'istanza del nostro grafico
     let myChart;
 
+    /**
+     * FUNZIONE PRINCIPALE DI CALCOLO (calculateBEP):
+     * Questa funzione fa due cose importantissime:
+     * 1. Legge i valori attuali degli slider.
+     * 2. Applica la formula del Break-Even Point.
+     * 3. Aggiorna i testi del sito e passa i dati al grafico.
+     */
     function calculateBEP() {
+        // Estraiamo i valori dagli slider convertendoli in numeri decimali (parseFloat)
         const cf = parseFloat(document.getElementById('input-cf').value);
         const cv1 = parseFloat(document.getElementById('input-cv1').value);
         const cv2 = parseFloat(document.getElementById('input-cv2').value);
 
-        // Aggiorna le etichette con precisione decimale corretta
+        // Aggiorniamo le scritte sopra gli slider inserendo l'unità di misura corretta (€ e €/Km)
         document.getElementById('val-cf').innerText = cf + ' €';
         document.getElementById('val-cv1').innerText = cv1.toFixed(2) + ' €/Km';
         document.getElementById('val-cv2').innerText = cv2.toFixed(2) + ' €/Km';
 
-        // Calcolo BEP: x = CF / (CV1 - CV2)
-        let x = 0;
-        let convText = "";
-        let insightText = "";
+        let x = 0;             // Conterrà la distanza BEP (Km)
+        let convText = "";     // Messaggio dinamico di convenienza
+        let insightText = "";  // Spiegazione analitica per la classe
 
+        /*
+          LA FORMULA LOGICA DEL PAREGGIO:
+          Il punto di intersezione si calcola dividendo i Costi Fissi (CF) 
+          per la differenza tra il costo al km delle due modalità (CV1 - CV2).
+          
+          ⚠️ NOTA MATEMATICA CRITICA:
+          Se il costo al km del camion (CV1) è inferiore o uguale a quello del treno (CV2),
+          significa che il treno è sempre più caro e non supererà mai il camion.
+          Per evitare di dividere per zero (che farebbe crashare la pagina), mettiamo un controllo "if".
+        */
         if (cv1 > cv2) {
+            // Formula reale del BEP
             x = cf / (cv1 - cv2);
             const costoPareggio = x * cv1;
-            
-            // Calcolo spedizioni equivalenti ipotizzando un flusso di 15.000 Km all'anno su questa linea
-            const viaggiAnno = Math.round(15000 / (x || 500));
 
+            // Aggiorniamo i numeri giganti nelle schede del risultato
             document.getElementById('res-dist').innerText = Math.round(x) + ' Km';
             document.getElementById('res-costo').innerText = Math.round(costoPareggio) + ' €';
             
             convText = `L'intermodale (Treno) conviene oltre i <strong>${Math.round(x)} Km</strong>.`;
             
-            // Analisi logistica dinamica da "10 e lode"
+            // Calcoliamo un esempio pratico per far brillare la spiegazione a lezione
             const diffKm = (cv1 - cv2).toFixed(2);
-            insightText = `<strong>Insight Logistico:</strong> Con un differenziale di costo variabile pari a <strong>${diffKm} €/Km</strong> a favore del treno, la pendenza della retta stradale fa sì che l'intermodalità si ripaghi rapidamente. Su una tratta standard da 800 Km, questa scelta ti farà risparmiare circa <strong>${Math.round((800 * cv1) - (cf + 800 * cv2))} €</strong> a viaggio!`;
+            // Ipotizziamo un viaggio standard di 800 Km e mostriamo quanto si risparmia rispetto al camion
+            const risparmioTratta = Math.round((800 * cv1) - (cf + 800 * cv2));
             
+            insightText = `<strong>Insight Logistico:</strong> Con un differenziale di costo variabile pari a <strong>${diffKm} €/Km</strong> a favore del treno, la pendenza della retta stradale fa sì che l'intermodalità si ripaghi rapidamente. Su una tratta standard da 800 Km, questa scelta ti farà risparmiare circa <strong>${risparmioTratta} €</strong> a viaggio!`;
+            
+            // Chiamiamo la funzione che disegna o aggiorna il grafico passandogli il BEP calcolato
             updateChart(cf, cv1, cv2, x, costoPareggio);
         } else {
-            // Se il treno costa di più del camion anche al chilometro (assurdo logistico, ma possibile nei controlli)
+            // Se le rette non si incrociano mai (Treno più costoso del camion sia fisso che variabile)
             document.getElementById('res-dist').innerText = 'N/A';
             document.getElementById('res-costo').innerText = 'N/A';
             convText = `⚠️ Il Camion è sempre più economico del treno a qualsiasi distanza.`;
@@ -653,55 +734,73 @@
             updateChart(cf, cv1, cv2, 0, 0);
         }
 
+        // Scriviamo i messaggi generati dentro i div HTML corrispondenti
         document.getElementById('res-status').innerHTML = convText;
         document.getElementById('logistics-insight').innerHTML = insightText;
     }
 
+    /**
+     * FUNZIONE DI DISEGNO DEL GRAFICO (updateChart):
+     * Gestisce il disegno delle due rette e del punto giallo su assi cartesiani reali.
+     */
     function updateChart(cf, cv1, cv2, bepX, bepY) {
-        // Se il BEP è zero o irrealistico, usiamo 1000 come distanza massima fittizia per visualizzare il grafico
+        // Stabiliamo una distanza massima visibile sull'asse X pari a circa il doppio del BEP per tenerlo ben centrato.
         const maxDist = bepX > 0 ? Math.round(bepX * 2.2) : 1000;
         const steps = 12;
         const labels = [];
         const dataCamion = [];
         const dataTreno = [];
 
+        /*
+          CREAZIONE DEI DATI CARTESIANI:
+          Generiamo 12 punti di campionamento.
+          Per ogni punto calcoliamo la coordinata X (distanza in Km) e la coordinata Y (costo totale in €).
+          Utilizziamo oggetti del tipo {x: valore, y: valore} per essere digeriti correttamente dalla scala lineare di Chart.js.
+        */
         for (let i = 0; i <= steps; i++) {
             const dist = Math.round((maxDist / steps) * i);
             labels.push(dist);
+            // La retta del camion parte da 0 (zero costi fissi)
             dataCamion.push({ x: dist, y: dist * cv1 });
+            // La retta del treno parte dall'altezza dei costi fissi (cf)
             dataTreno.push({ x: dist, y: cf + (dist * cv2) });
         }
 
+        // Il punto del BEP viene plottato solo se c'è effettivamente un'intersezione realistica
         const pointBEP = bepX > 0 ? [{ x: Math.round(bepX), y: Math.round(bepY) }] : [];
 
-        // Palette coordinata sul brand Luca (Blu / Oro)
+        // Palette coordinata dei colori (Logo Blu & Oro)
         const chartColors = {
-            camion: '#118DFF', // Blu logo
-            treno: '#F2C811',  // Oro logo
-            bep: '#FFFFFF',    // Bianco brillante
+            camion: '#118DFF', // Blu brillante
+            treno: '#F2C811',  // Oro brillante
+            bep: '#FFFFFF',    // Bianco lucido
             grid: 'rgba(255, 255, 255, 0.04)',
             tick: 'rgba(255, 255, 255, 0.45)'
         };
 
+        // Se il grafico esiste già, aggiorniamo solo i dati senza ricreare la struttura (così la transizione è fluidissima)
         if (myChart) {
             myChart.data.labels = labels;
             myChart.data.datasets[0].data = dataCamion;
             myChart.data.datasets[1].data = dataTreno;
             myChart.data.datasets[2].data = pointBEP;
             myChart.options.scales.x.max = maxDist;
-            myChart.update('none');
+            myChart.update('none'); // Aggiorna istantaneamente senza animazioni di rimbalzo fastidiose durante lo slide
         } else {
+            // Se è la prima volta che carichiamo la pagina, creiamo il grafico da zero nel canvas
             const ctx = document.getElementById('liveChart').getContext('2d');
 
-            // Gradienti per le aree sottostanti le rette dei costi
+            // Creiamo un gradiente sfumato sotto la linea del camion (Blu -> Trasparente)
             const gradCamion = ctx.createLinearGradient(0, 0, 0, 300);
             gradCamion.addColorStop(0, 'rgba(17, 141, 255, 0.15)');
             gradCamion.addColorStop(1, 'rgba(17, 141, 255, 0)');
 
+            // Creiamo un gradiente sfumato sotto la linea del treno (Oro -> Trasparente)
             const gradTreno = ctx.createLinearGradient(0, 0, 0, 300);
             gradTreno.addColorStop(0, 'rgba(242, 200, 17, 0.12)');
             gradTreno.addColorStop(1, 'rgba(242, 200, 17, 0)');
 
+            // Inizializziamo Chart.js con la configurazione personalizzata
             myChart = new Chart(ctx, {
                 type: 'line',
                 data: {
@@ -713,10 +812,10 @@
                             borderColor: chartColors.camion,
                             backgroundColor: gradCamion,
                             borderWidth: 3,
-                            pointRadius: 0,
+                            pointRadius: 0, // Nasconde i singoli pallini lungo la linea per tenerla pulita
                             pointHoverRadius: 6,
                             pointHoverBackgroundColor: chartColors.camion,
-                            tension: 0,
+                            tension: 0, // Linea perfettamente dritta (costo lineare costante)
                             fill: true
                         },
                         {
@@ -736,12 +835,12 @@
                             data: pointBEP,
                             borderColor: chartColors.treno,
                             backgroundColor: chartColors.bep,
-                            pointRadius: 9,
+                            pointRadius: 9, // Pallino del BEP bello grande ed evidente
                             pointHoverRadius: 12,
                             pointBorderWidth: 3,
                             pointBorderColor: chartColors.treno,
-                            showLine: false,
-                            type: 'scatter'
+                            showLine: false, // Evita di tracciare linee di collegamento spurie
+                            type: 'scatter'  // Tipo scatter per disegnare il punto isolato sulle coordinate esatte
                         }
                     ]
                 },
@@ -764,6 +863,7 @@
                             }
                         },
                         tooltip: {
+                            // Personalizzazione estetica del fumetto quando ci passi sopra col mouse
                             backgroundColor: 'rgba(10, 14, 26, 0.95)',
                             titleFont: { family: 'Inter', size: 13, weight: '700' },
                             bodyFont: { family: 'Inter', size: 12 },
@@ -795,7 +895,7 @@
                             }
                         },
                         x: {
-                            type: 'linear',
+                            type: 'linear', /* Scala lineare per calcolare gli spazi millimetrici reali */
                             position: 'bottom',
                             max: maxDist,
                             grid: { display: false },
@@ -811,12 +911,17 @@
         }
     }
 
-    // Event Listeners
+    /* 
+      EVENT LISTENERS (ASCOLTATORI DI EVENTI):
+      Questo piccolissimo blocco dice al browser: "Ogni volta che l'utente muove
+      uno degli slider ('input'), esegui immediatamente la funzione 'calculateBEP'".
+      Questo rende il simulatore istantaneo e interattivo!
+    */
     document.querySelectorAll('input[type="range"]').forEach(input => {
         input.addEventListener('input', calculateBEP);
     });
 
-    // Inizializzazione al caricamento
+    // Avvia il calcolo iniziale non appena la pagina ha finito di caricarsi
     window.addEventListener('DOMContentLoaded', calculateBEP);
 </script>
 
