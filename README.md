@@ -281,8 +281,8 @@ This project is open source and available under the [MIT License](LICENSE). Use 
 
 **Built with ❤️, curiosity, and 30+ years of engineering instinct**
 
-*By Luca R. — Channeling a lifetime of IT expertise into the world of Logistics 4.0.*
+*By Luca Reina. — Channeling a lifetime of IT expertise into the world of Logistics 4.0.*
 
-*Milan, Italy • 2025–2026*
+*Verona, Italy • 2025–2026*
 
 </div>
