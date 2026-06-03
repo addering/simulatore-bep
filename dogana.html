@@ -422,6 +422,39 @@
             color: var(--brand-red);
         }
 
+        /* Menu a tendina per la selezione rapida della tipologia merce */
+        .product-select {
+            width: 100%;
+            background: var(--bg-field);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            color: var(--text-main);
+            font-family: 'Inter', sans-serif;
+            font-size: 13px;
+            font-weight: 500;
+            padding: 10px 14px;
+            border-radius: 8px;
+            outline: none;
+            cursor: pointer;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+            -webkit-appearance: none;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%239aa0a6' viewBox='0 0 16 16'%3E%3Cpath d='M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 14px center;
+            padding-right: 36px;
+        }
+
+        .product-select:focus {
+            border-color: var(--brand-blue);
+            box-shadow: 0 0 0 3px rgba(17, 141, 255, 0.15);
+        }
+
+        .product-select option {
+            background: #1a1e30;
+            color: var(--text-main);
+            padding: 8px;
+        }
+
         /* Selettore rapido IVA */
         .iva-quick {
             display: flex;
@@ -814,7 +847,24 @@
                 <div class="field-label">
                     <span>Codice TARIC (Nomenclatura Combinata a 10 cifre)</span>
                 </div>
-                <span class="field-desc" style="margin-bottom: 6px; display: block;">Inserisci il codice doganale della merce e clicca Verifica per interrogare il database europeo</span>
+
+                <!-- Menu a tendina per selezione rapida: compila automaticamente codice e dazio -->
+                <span class="field-desc" style="margin-bottom: 4px; display: block;">Seleziona Tipologia Merce (Opzionale)</span>
+                <select id="select-prodotto" class="product-select">
+                    <option value="">Seleziona un prodotto...</option>
+                    <option value="8517130000|0">📱 Smartphone / Tablet (TARIC: 8517130000 — Dazio: 0%)</option>
+                    <option value="8471300000|0">💻 Computer Portatili (TARIC: 8471300000 — Dazio: 0%)</option>
+                    <option value="6403990000|8">👞 Calzature in pelle (TARIC: 6403990000 — Dazio: 8%)</option>
+                    <option value="6109100010|12">👕 Abbigliamento in cotone (TARIC: 6109100010 — Dazio: 12%)</option>
+                    <option value="8541430000|0">☀️ Pannelli Solari (TARIC: 8541430000 — Dazio: 0%)</option>
+                    <option value="8708299090|4.5">🔧 Ricambi Auto / Meccanici (TARIC: 8708299090 — Dazio: 4.5%)</option>
+                    <option value="8703801010|10">🚗 Automobili Elettriche (TARIC: 8703801010 — Dazio: 10%)</option>
+                    <option value="8712000000|14">🚲 Biciclette (TARIC: 8712000000 — Dazio: 14%)</option>
+                    <option value="0901210000|7.5">☕ Caffè torrefatto (TARIC: 0901210000 — Dazio: 7.5%)</option>
+                    <option value="8528720000|14">📺 Televisori / Monitor (TARIC: 8528720000 — Dazio: 14%)</option>
+                </select>
+
+                <span class="field-desc" style="margin-bottom: 6px; display: block; margin-top: 8px;">Oppure inserisci manualmente il codice doganale e clicca Verifica</span>
                 <div class="taric-row">
                     <input type="text" id="input-taric" maxlength="10" placeholder="es. 8517120000" inputmode="numeric">
                     <button class="btn-verify" id="btn-taric" onclick="verificaTARIC()">🔍 Verifica</button>
@@ -1271,6 +1321,35 @@
 
         // Primo calcolo con i valori preimpostati
         calcolaOneri();
+
+        /*
+          LISTENER PER IL MENU A TENDINA PRODOTTI:
+          Quando l'utente seleziona un prodotto dal dropdown, estraiamo il codice TARIC
+          e l'aliquota dal valore dell'option (formato: "codice|aliquota"),
+          li inseriamo automaticamente nei campi esistenti e ricalcoliamo tutto.
+        */
+        document.getElementById('select-prodotto').addEventListener('change', function() {
+            if (!this.value) return; // Se ha selezionato "Seleziona un prodotto..." non facciamo nulla
+
+            const [codice, aliquota] = this.value.split('|');
+            const dazio = parseFloat(aliquota);
+
+            // Scriviamo il codice TARIC nel campo di testo esistente
+            document.getElementById('input-taric').value = codice;
+
+            // Impostiamo lo slider del dazio sulla percentuale corretta
+            document.getElementById('slider-dazio').value = dazio;
+            document.getElementById('val-dazio').innerText = dazio.toFixed(2) + ' %';
+
+            // Mostriamo il feedback verde come se avessimo verificato il codice
+            const desc = this.options[this.selectedIndex].text.replace(/^.{2} /, ''); // togliamo l'emoji
+            const feedback = document.getElementById('taric-feedback');
+            feedback.className = 'taric-feedback success';
+            feedback.innerHTML = `<span class="badge badge-green">SELEZIONATO</span> <strong>${desc}</strong> — Dazio applicato automaticamente: <strong>${dazio.toFixed(1)}%</strong>`;
+
+            // Ricalcoliamo istantaneamente tutti i KPI
+            calcolaOneri();
+        });
     });
 
 </script>
