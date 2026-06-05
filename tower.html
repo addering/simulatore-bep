@@ -941,6 +941,9 @@
     // ═══════════════════════════════════════════════════════════════
     //  SEZIONE 6-8: MOTORE BEP + ANALISI (Step 2 — invariato)
     // ═══════════════════════════════════════════════════════════════
+    // Peso stimato standard per pallet (0.5 tonnellate / 500 kg)
+    const STANDARD_PALLET_WEIGHT_TONS = 0.5;
+
     function calculateShipmentCost(v, d) { return v.fixedCostPerShipment + (d * v.costPerKm); }
 
     function calculateTotalTransportCost(v, d, u) {
@@ -949,7 +952,7 @@
         const tc = calculateShipmentCost(v, d);
         const th = u * v.handlingPerUnit;
         const tot = nt * tc + th;
-        return { totalCost:r2(tot), numTrips:nt, tripCost:r2(tc), handlingCost:r2(th), costPerUnit:r2(tot/u), transitHours:r2((d/1000)*v.transitHoursPer1000km), co2Total:r2((v.co2PerTonKm*0.5*d*u)/1000) };
+        return { totalCost:r2(tot), numTrips:nt, tripCost:r2(tc), handlingCost:r2(th), costPerUnit:r2(tot/u), transitHours:r2((d/1000)*v.transitHoursPer1000km), co2Total:r2((v.co2PerTonKm * STANDARD_PALLET_WEIGHT_TONS * d * u) / 1000) };
     }
 
     function calculateVectorBEP(lc, sp, v, d) {
@@ -1007,7 +1010,7 @@
         const cx=findCrossoverPoints(lcu,route);
         const pa=opt.all.map(v=>{
             const rev=sp*us, gc=lcu*us, tc=gc+v.totalCost, pr=rev-tc, mg=rev>0?(pr/rev)*100:0;
-            return {vectorName:v.vectorName,vectorIcon:v.vectorIcon,revenue:r2(rev),goodsCost:r2(gc),transportCost:v.totalCost,totalCost:r2(tc),profit:r2(pr),marginPercent:r2(mg),isProfitable:pr>0};
+            return {vectorId:v.vectorId,vectorName:v.vectorName,vectorIcon:v.vectorIcon,revenue:r2(rev),goodsCost:r2(gc),transportCost:v.totalCost,totalCost:r2(tc),profit:r2(pr),marginPercent:r2(mg),isProfitable:pr>0};
         });
         return { success:true, context:{route:route.name,product:ir.product.description,landedCostPerUnit:lcu,sellingPrice:sp,unitsToShip:us}, bep:{road:bR,rail:bI,sea:bS}, optimal:opt, crossovers:cx, profitAnalysis:pa };
     }
@@ -1571,25 +1574,21 @@
             return;
         }
 
-        // Se non è mai stata fatta un'analisi, la eseguiamo in automatico
         if (!latestAnalysis || !latestImportResult) {
             runAnalysis();
         }
 
-        // Se l'analisi fallisce comunque, avvisiamo
         if (!latestAnalysis || !latestImportResult) {
             responseEl.innerHTML = `⚠️ Compila prima tutti i parametri e clicca su "Calcola Analisi Completa" per caricare i dati.`;
             responseEl.style.display = 'block';
             return;
         }
 
-        // Resettiamo eventuali evidenziazioni precedenti
         resetHighlights();
 
         let responseHtml = "";
         let matched = false;
 
-        // Regole regex per parsing
         const rxReset = /reset|azzera|pulisci|cancella|filtri|standard/i;
         const rxWorst = /peggiore|non conveniente|perdita|meno conveniente|costo maggiore|più caro|caro/i;
         const rxBest = /migliore|ottimale|più conveniente|consigliato|risparmio/i;
@@ -1610,22 +1609,23 @@
             
             responseHtml = `⚠️ Il vettore <strong>meno conveniente</strong> per questa spedizione (${latestAnalysis.context.unitsToShip} pallet) è <strong>${worstVector.vectorName}</strong>.<br>` +
                            `• Profitto netto: <strong class="hl-red">${fmt(worstVector.profit)}</strong><br>` +
-                           `• Costo di trasporto: <strong>${fmt(worstVector.totalCost)}</strong> (${worstVector.transitHours}h transito).<br>` +
+                           `• Costo di trasporto: <strong>${fmt(worstVector.transportCost)}</strong> (${worstVector.transitHours}h transito).<br>` +
                            `<em>Ho evidenziato il vettore in rosso sul grafico e sulle tabelle di confronto.</em>`;
             responseEl.className = "assistant-response alert-worst";
             matched = true;
         }
         else if (rxBest.test(query)) {
             const bestVector = latestAnalysis.optimal.optimal;
-            const bestProfit = latestAnalysis.profitAnalysis.find(p => p.vectorId === bestVector.vectorId);
+            const bestProfit = latestAnalysis.profitAnalysis.find(p => p.vectorName.includes(bestVector.vectorName.split(' ')[0]));
+            const vectorId = bestVector.vectorId;
             
-            highlightVector(bestVector.vectorId, 'best');
+            highlightVector(vectorId, 'best');
             highlightKPICard('card-vector', 'rgba(0, 200, 81, 0.4)', 'var(--green)');
             
             responseHtml = `🏆 Il vettore <strong>ottimale (più conveniente)</strong> per questa spedizione è <strong>${bestVector.vectorName}</strong>.<br>` +
                            `• Profitto stimato: <strong class="hl-green">${fmt(bestProfit.profit)}</strong><br>` +
                            `• Costo sbarcato per unità: <strong>${fmt(bestVector.costPerUnit)}</strong>.<br>` +
-                           `• Risparmio rispetto al 2° vettore: <strong>${fmt(latestAnalysis.optimal.savings)}</strong>.<br>` +
+                           `• Risparmio rispetto al peggiore: <strong>${fmt(latestAnalysis.optimal.savings)}</strong>.<br>` +
                            `<em>Ho evidenziato in verde la card del vettore ottimale, la riga di confronto e la curva nel grafico.</em>`;
             responseEl.className = "assistant-response alert-best";
             matched = true;
@@ -1640,14 +1640,16 @@
             }
 
             const c = latestImportResult.cascade;
-            const m = latestImportResult.metadata;
+            const prod = latestImportResult.product;
+            const inp = latestImportResult.inputs;
             
             responseHtml = `🏛️ <strong>Analisi Oneri Doganali:</strong><br>` +
-                           `• Codice TARIC: <strong>${latestImportResult.inputs.taricCode}</strong> (${m.description})<br>` +
-                           `• Dazio Erga Omnes: <strong>${(m.dutyRate * 100).toFixed(1)}%</strong> → Dazio: <strong class="hl-gold">${fmt(c.customsDuty)}</strong><br>` +
-                           `• IVA all'Importazione (in Italia): <strong>${m.vatRate}%</strong> (su base imponibile ${fmt(c.vatBase)}) → IVA: <strong class="hl-gold">${fmt(c.importVAT)}</strong><br>` +
-                           `• Totale Oneri Doganali: <strong>${fmt(latestImportResult.analytics.totalDuties)}</strong> (${latestImportResult.analytics.fiscalImpact}% del valore FOB).<br>` +
-                           `<em>Ho evidenziato la card del dazio e il selettore TARIC.</em>`;
+                           `• Codice TARIC: <strong>${prod.taricCode}</strong> (<span class="hl-blue">${prod.description}</span>)<br>` +
+                           `• Dazio Erga Omnes: <strong>${inp.dutyRate}%</strong> → Valore Dazio: <strong class="hl-gold">${fmt(c.customsDuty)}</strong><br>` +
+                           `• Base Imponibile IVA: <strong>${fmt(c.vatTaxBase)}</strong> (CIF + Dazio + Spese UE)<br>` +
+                           `• IVA all'Importazione: <strong>${inp.vatRate}%</strong> → Valore IVA: <strong class="hl-gold">${fmt(c.importVAT)}</strong><br>` +
+                           `• Totale Oneri: <strong>${fmt(latestImportResult.analytics.totalDuties)}</strong> (${latestImportResult.analytics.fiscalImpact}% sul valore merce FOB).<br>` +
+                           `<em>Effetto Cascata (IVA su Dazio): ${fmt(latestImportResult.analytics.cascadeEffect)}</em>`;
             responseEl.className = "assistant-response alert-duties";
             matched = true;
         }
@@ -1667,47 +1669,44 @@
             matched = true;
         }
         else if (rxSea.test(query)) {
-            const seaAna = latestAnalysis.profitAnalysis.find(p => p.vectorId === 'sea');
+            const seaAna = latestAnalysis.profitAnalysis.find(p => p.vectorName.includes('Nave'));
             const seaComp = latestAnalysis.optimal.all.find(v => v.vectorId === 'sea');
             
             highlightVector('sea', 'info-sea');
             
-            responseHtml = `🚢 <strong>Vettore Nave (Cabotaggio Shenzhen → Palermo):</strong><br>` +
-                           `• Costo Totale: <strong>${fmt(seaAna.totalCost)}</strong> (${fmt(seaComp.costPerUnit)}/u)<br>` +
-                           `• Tempo Transito: <strong>${seaAna.transitHours} ore</strong><br>` +
-                           `• Profittabilità: <strong class="${seaAna.isProfitable ? 'hl-green' : 'hl-red'}">${fmt(seaAna.profit)}</strong> (${seaAna.isProfitable ? 'In profitto' : 'In perdita'})<br>` +
-                           `• Emissioni CO₂: <strong>${seaComp.co2Kg.toFixed(0)} kg</strong> (il più ecologico).<br>` +
-                           `<em>Ho evidenziato la curva gialla sul grafico e la riga della nave.</em>`;
+            responseHtml = `🚢 <strong>Vettore Cabotaggio Nave:</strong><br>` +
+                           `• Costo Totale Trasporto: <strong>${fmt(seaComp.totalCost)}</strong> (${fmt(seaComp.costPerUnit)}/u)<br>` +
+                           `• Tempo Transito Stimato: <strong>${seaComp.transitHours} ore</strong><br>` +
+                           `• Profittabilità Netta sulla Spedizione: <strong class="${seaAna.isProfitable ? 'hl-green' : 'hl-red'}">${fmt(seaAna.profit)}</strong> (Margine: ${seaAna.marginPercent}%)<br>` +
+                           `• Impronta Ecologica CO₂: <strong>${seaComp.co2Total.toFixed(0)} kg</strong>.<br>`;
             responseEl.className = "assistant-response alert-sea";
             matched = true;
         }
         else if (rxRail.test(query)) {
-            const railAna = latestAnalysis.profitAnalysis.find(p => p.vectorId === 'rail');
+            const railAna = latestAnalysis.profitAnalysis.find(p => p.vectorName.includes('Treno'));
             const railComp = latestAnalysis.optimal.all.find(v => v.vectorId === 'rail');
             
             highlightVector('rail', 'info-rail');
             
-            responseHtml = `🚂 <strong>Vettore Treno (Intermodale Verona → Palermo):</strong><br>` +
-                           `• Costo Totale: <strong>${fmt(railAna.totalCost)}</strong> (${fmt(railComp.costPerUnit)}/u)<br>` +
-                           `• Tempo Transito: <strong>${railAna.transitHours} ore</strong><br>` +
-                           `• Profittabilità: <strong class="${railAna.isProfitable ? 'hl-green' : 'hl-red'}">${fmt(railAna.profit)}</strong> (${railAna.isProfitable ? 'In profitto' : 'In perdita'})<br>` +
-                           `• Emissioni CO₂: <strong>${railComp.co2Kg.toFixed(0)} kg</strong>.<br>` +
-                           `<em>Ho evidenziato la curva blu sul grafico e la riga del treno.</em>`;
+            responseHtml = `🚂 <strong>Vettore Intermodale Treno:</strong><br>` +
+                           `• Costo Totale Trasporto: <strong>${fmt(railComp.totalCost)}</strong> (${fmt(railComp.costPerUnit)}/u)<br>` +
+                           `• Tempo Transito Stimato: <strong>${railComp.transitHours} ore</strong><br>` +
+                           `• Profittabilità Netta sulla Spedizione: <strong class="${railAna.isProfitable ? 'hl-green' : 'hl-red'}">${fmt(railAna.profit)}</strong> (Margine: ${railAna.marginPercent}%)<br>` +
+                           `• Impronta Ecologica CO₂: <strong>${railComp.co2Total.toFixed(0)} kg</strong>.<br>`;
             responseEl.className = "assistant-response alert-rail";
             matched = true;
         }
         else if (rxRoad.test(query)) {
-            const roadAna = latestAnalysis.profitAnalysis.find(p => p.vectorId === 'road');
+            const roadAna = latestAnalysis.profitAnalysis.find(p => p.vectorName.includes('Gomma'));
             const roadComp = latestAnalysis.optimal.all.find(v => v.vectorId === 'road');
             
             highlightVector('road', 'info-road');
             
-            responseHtml = `🚛 <strong>Vettore Gomma (FTL Verona → Palermo):</strong><br>` +
-                           `• Costo Totale: <strong>${fmt(roadAna.totalCost)}</strong> (${fmt(roadComp.costPerUnit)}/u)<br>` +
-                           `• Tempo Transito: <strong>${roadAna.transitHours} ore</strong> (il più veloce)<br>` +
-                           `• Profittabilità: <strong class="${roadAna.isProfitable ? 'hl-green' : 'hl-red'}">${fmt(roadAna.profit)}</strong> (${roadAna.isProfitable ? 'In profitto' : 'In perdita'})<br>` +
-                           `• Emissioni CO₂: <strong>${roadComp.co2Kg.toFixed(0)} kg</strong> (il più inquinante).<br>` +
-                           `<em>Ho evidenziato la curva rossa sul grafico e la riga della gomma.</em>`;
+            responseHtml = `🚛 <strong>Vettore Gomma (FTL):</strong><br>` +
+                           `• Costo Totale Trasporto: <strong>${fmt(roadComp.totalCost)}</strong> (${fmt(roadComp.costPerUnit)}/u)<br>` +
+                           `• Tempo Transito Stimato: <strong>${roadComp.transitHours} ore</strong> (Il più rapido)<br>` +
+                           `• Profittabilità Netta sulla Spedizione: <strong class="${roadAna.isProfitable ? 'hl-green' : 'hl-red'}">${fmt(roadAna.profit)}</strong> (Margine: ${roadAna.marginPercent}%)<br>` +
+                           `• Impronta Ecologica CO₂: <strong>${roadComp.co2Total.toFixed(0)} kg</strong>.<br>`;
             responseEl.className = "assistant-response alert-road";
             matched = true;
         }
