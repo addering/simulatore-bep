@@ -1,0 +1,1865 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Logistics Control Tower 4.0</title>
+    <meta name="description" content="Dashboard predittiva per importazioni Extra-UE: calcolo oneri doganali a cascata, ottimizzazione vettori di trasporto intermodale e analisi Break-Even Point.">
+
+    <!--
+      ╔══════════════════════════════════════════════════════════════════╗
+      ║  LOGISTICS CONTROL TOWER 4.0                                    ║
+      ║  Step 1: Data Core & TARIC Database + Cascading Tax Engine     ║
+      ║  Step 2: BEP Engine & Intermodal Transport Flow Logic          ║
+      ║  Step 3: Enterprise Glassmorphic UI                            ║
+      ║  Step 4: Chart.js Interactive Visualizations                   ║
+      ║                                                                 ║
+      ║  Autore: Luca R. — GOL Logistica 4.0                          ║
+      ╚══════════════════════════════════════════════════════════════════╝
+    -->
+
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.1.0/dist/chartjs-plugin-annotation.min.js"></script>
+
+    <style>
+        /* ── RESET ── */
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        /* ── DESIGN TOKENS (stessa palette del BEP Simulator e Customs Calculator) ── */
+        :root {
+            --blue: #118DFF;
+            --blue-glow: rgba(17,141,255,0.25);
+            --dark: #12239E;
+            --gold: #F2C811;
+            --gold-glow: rgba(242,200,17,0.3);
+            --orange: #FF8C42;
+            --green: #00C851;
+            --red: #FF4444;
+            --text: #e8eaed;
+            --text-m: #9aa0a6;
+            --bg: #0a0e1a;
+            --card: rgba(18,22,40,0.85);
+            --input-bg: rgba(30,36,60,0.7);
+            --field: rgba(255,255,255,0.05);
+            --border: rgba(255,255,255,0.06);
+            --glow: rgba(17,141,255,0.15);
+            --glass: rgba(255,255,255,0.03);
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* ── SFONDO ANIMATO ── */
+        body::before {
+            content: '';
+            position: fixed; inset: 0;
+            background:
+                radial-gradient(ellipse at 15% 50%, rgba(17,141,255,0.07) 0%, transparent 50%),
+                radial-gradient(ellipse at 85% 20%, rgba(18,35,158,0.09) 0%, transparent 50%),
+                radial-gradient(ellipse at 50% 80%, rgba(242,200,17,0.04) 0%, transparent 50%);
+            animation: bgShift 25s ease-in-out infinite alternate;
+            z-index: -2;
+        }
+        @keyframes bgShift {
+            0% { transform: translate(0,0) scale(1); }
+            100% { transform: translate(-2%,-2%) scale(1.03); }
+        }
+
+        /* Griglia tecnica */
+        body::after {
+            content: '';
+            position: fixed; inset: 0;
+            background-image:
+                linear-gradient(rgba(255,255,255,0.012) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.012) 1px, transparent 1px);
+            background-size: 50px 50px;
+            z-index: -1;
+        }
+
+        /* ── HEADER ── */
+        .header {
+            background: linear-gradient(180deg, rgba(17,141,255,0.08), transparent);
+            border-bottom: 1px solid var(--border);
+            padding: 20px 28px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            backdrop-filter: blur(30px);
+            -webkit-backdrop-filter: blur(30px);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-left { display: flex; align-items: center; gap: 14px; }
+
+        .header-icon {
+            width: 42px; height: 42px;
+            background: linear-gradient(135deg, var(--blue), var(--dark));
+            border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px;
+            box-shadow: 0 6px 20px rgba(17,141,255,0.3);
+            animation: iconPulse 3s ease-in-out infinite;
+        }
+        @keyframes iconPulse {
+            0%,100% { box-shadow: 0 6px 20px rgba(17,141,255,0.3); }
+            50% { box-shadow: 0 6px 28px rgba(17,141,255,0.5); }
+        }
+
+        .header h1 { font-size: 17px; font-weight: 800; letter-spacing: -0.3px; color: #fff; }
+        .header-sub { font-size: 11px; color: var(--text-m); font-weight: 400; }
+
+        .header-badges { display: flex; gap: 8px; align-items: center; }
+        .badge-v {
+            background: linear-gradient(135deg, var(--gold), #ffe066);
+            color: #1a1400; padding: 4px 12px; border-radius: 6px;
+            font-weight: 800; font-size: 9px; letter-spacing: 1px; text-transform: uppercase;
+        }
+        .badge-status {
+            background: rgba(0,200,81,0.12); color: var(--green);
+            padding: 4px 10px; border-radius: 6px;
+            font-weight: 700; font-size: 9px; letter-spacing: 0.5px; text-transform: uppercase;
+            display: flex; align-items: center; gap: 5px;
+        }
+        .badge-status::before {
+            content: ''; width: 6px; height: 6px; background: var(--green);
+            border-radius: 50%; box-shadow: 0 0 6px var(--green);
+            animation: blink 2s ease-in-out infinite;
+        }
+        @keyframes blink { 0%,100%{opacity:1;} 50%{opacity:0.3;} }
+
+        /* ── DASHBOARD GRID ── */
+        .dashboard {
+            display: grid;
+            grid-template-columns: 320px 1fr 1fr;
+            grid-template-rows: auto 1fr;
+            gap: 20px;
+            padding: 20px 24px;
+            min-height: calc(100vh - 80px);
+        }
+
+        /* ── PANNELLO CONTROLLO (sinistra) ── */
+        .control-panel {
+            grid-row: 1 / 3;
+            background: var(--card);
+            border-radius: 18px;
+            border: 1px solid var(--border);
+            backdrop-filter: blur(40px);
+            -webkit-backdrop-filter: blur(40px);
+            overflow-y: auto;
+            max-height: calc(100vh - 100px);
+            position: sticky; top: 80px;
+            animation: slideIn 0.6s cubic-bezier(0.16,1,0.3,1) both;
+        }
+        @keyframes slideIn { 0%{opacity:0;transform:translateX(-20px);} 100%{opacity:1;transform:translateX(0);} }
+
+        .panel-header {
+            padding: 18px 18px 14px;
+            border-bottom: 1px solid var(--border);
+            background: linear-gradient(180deg, rgba(17,141,255,0.05), transparent);
+        }
+        .panel-title {
+            font-size: 10px; font-weight: 800; text-transform: uppercase;
+            letter-spacing: 1.5px; color: var(--blue);
+            display: flex; align-items: center; gap: 7px;
+        }
+        .panel-title::before {
+            content: ''; width: 7px; height: 7px; background: var(--blue);
+            border-radius: 50%; box-shadow: 0 0 6px var(--blue-glow);
+        }
+
+        .panel-body { padding: 14px 18px 18px; display: flex; flex-direction: column; gap: 10px; }
+
+        /* Campi input */
+        .fg { display: flex; flex-direction: column; gap: 4px; }
+        .fg label {
+            font-size: 11px; font-weight: 600; color: #fff;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .fg .hint { font-size: 9.5px; color: var(--text-m); font-weight: 400; }
+        .fg .val-badge {
+            color: var(--gold); font-weight: 700; font-size: 11px;
+            background: rgba(242,200,17,0.08); padding: 2px 8px; border-radius: 5px;
+            border: 1px solid rgba(242,200,17,0.12); font-variant-numeric: tabular-nums;
+        }
+
+        input[type="number"], select {
+            width: 100%; background: var(--field);
+            border: 1px solid rgba(255,255,255,0.08); color: var(--text);
+            font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600;
+            padding: 9px 12px; border-radius: 8px; outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            font-variant-numeric: tabular-nums;
+        }
+        input[type="number"]:focus, select:focus {
+            border-color: var(--blue);
+            box-shadow: 0 0 0 3px rgba(17,141,255,0.12);
+        }
+        input[type="number"]::-webkit-inner-spin-button,
+        input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; }
+        input[type="number"] { -moz-appearance: textfield; }
+
+        select {
+            cursor: pointer; -webkit-appearance: none; appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%239aa0a6' viewBox='0 0 16 16'%3E%3Cpath d='M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat; background-position: right 12px center; padding-right: 32px;
+        }
+        select option { background: #1a1e30; color: var(--text); }
+
+        /* Separatore sezioni */
+        .sep {
+            border: none; border-top: 1px dashed rgba(255,255,255,0.06);
+            margin: 6px 0;
+        }
+        .section-label {
+            font-size: 9px; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 1.2px; color: var(--gold); margin-top: 4px;
+            display: flex; align-items: center; gap: 6px;
+        }
+        .section-label::before {
+            content: ''; width: 6px; height: 6px; background: var(--gold);
+            border-radius: 50%; box-shadow: 0 0 6px var(--gold-glow);
+        }
+
+        /* Pulsante principale */
+        .btn-calc {
+            width: 100%; padding: 12px;
+            background: linear-gradient(135deg, var(--blue), var(--dark));
+            color: #fff; border: none; border-radius: 10px;
+            font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 800;
+            cursor: pointer; text-transform: uppercase; letter-spacing: 1px;
+            transition: all 0.2s; margin-top: 6px;
+            box-shadow: 0 6px 20px rgba(17,141,255,0.3);
+        }
+        .btn-calc:hover { transform: translateY(-1px); box-shadow: 0 8px 28px rgba(17,141,255,0.45); }
+        .btn-calc:active { transform: translateY(0); }
+
+        /* Drag & Drop */
+        .drop-zone {
+            border: 2px dashed rgba(255,255,255,0.1); border-radius: 12px;
+            padding: 16px; text-align: center; cursor: pointer;
+            transition: all 0.3s; background: rgba(255,255,255,0.01);
+        }
+        .drop-zone:hover, .drop-zone.dragover {
+            border-color: var(--blue); background: rgba(17,141,255,0.04);
+        }
+        .drop-zone.dragover { transform: scale(1.01); }
+        .drop-icon { font-size: 24px; margin-bottom: 6px; display: block; }
+        .drop-text { font-size: 11px; color: var(--text-m); line-height: 1.4; }
+        .drop-text strong { color: var(--blue); }
+        .drop-file-info {
+            font-size: 10px; color: var(--green); margin-top: 6px;
+            display: none; font-weight: 600;
+        }
+
+        /* ── KPI CARDS (centro-alto) ── */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+            align-content: start;
+        }
+
+        .kpi {
+            background: var(--glass); padding: 20px 16px;
+            border-radius: 14px; border: 1px solid var(--border);
+            text-align: center; position: relative; overflow: hidden;
+            transition: all 0.3s cubic-bezier(0.16,1,0.3,1);
+            animation: kpiIn 0.5s cubic-bezier(0.16,1,0.3,1) both;
+        }
+        .kpi:nth-child(1){animation-delay:0.1s;} .kpi:nth-child(2){animation-delay:0.15s;}
+        .kpi:nth-child(3){animation-delay:0.2s;} .kpi:nth-child(4){animation-delay:0.25s;}
+        @keyframes kpiIn { 0%{opacity:0;transform:translateY(14px);} 100%{opacity:1;transform:translateY(0);} }
+
+        .kpi:hover { transform: translateY(-2px); border-color: var(--glow); box-shadow: 0 8px 24px rgba(0,0,0,0.2); }
+        .kpi::before {
+            content: ''; position: absolute; top: 0; left: 0; right: 0;
+            height: 3px; border-radius: 3px 3px 0 0;
+        }
+        .kpi.gold-bar::before { background: linear-gradient(90deg, var(--gold), var(--orange)); }
+        .kpi.blue-bar::before { background: linear-gradient(90deg, var(--blue), #5eaaff); }
+        .kpi.green-bar::before { background: linear-gradient(90deg, var(--green), #66ffa3); }
+        .kpi.dark-bar::before { background: linear-gradient(90deg, var(--dark), var(--blue)); }
+
+        .kpi-emoji { font-size: 20px; display: block; margin-bottom: 4px; }
+        .kpi-label {
+            font-size: 9px; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 1px; color: var(--text-m); display: block; margin-bottom: 6px;
+        }
+        .kpi-value {
+            font-size: 26px; font-weight: 900; display: block;
+            font-variant-numeric: tabular-nums; line-height: 1.15;
+        }
+        .kpi.gold-bar .kpi-value {
+            background: linear-gradient(135deg, var(--gold), var(--orange));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+        }
+        .kpi.blue-bar .kpi-value { color: var(--blue); }
+        .kpi.green-bar .kpi-value { color: var(--green); }
+        .kpi.dark-bar .kpi-value { color: #8eaaff; }
+        .kpi-sub { font-size: 10px; color: var(--text-m); margin-top: 3px; display: block; }
+
+        @keyframes pop { 0%{transform:scale(1);} 50%{transform:scale(1.04);} 100%{transform:scale(1);} }
+        .kpi-pop { animation: pop 0.25s ease-out; }
+
+        /* ── AREA GRAFICO (destra) ── */
+        .chart-area {
+            grid-row: 1 / 3;
+            background: var(--card); border-radius: 18px;
+            border: 1px solid var(--border);
+            backdrop-filter: blur(40px); -webkit-backdrop-filter: blur(40px);
+            padding: 20px;
+            display: flex; flex-direction: column;
+            animation: slideIn 0.6s cubic-bezier(0.16,1,0.3,1) 0.15s both;
+        }
+
+        .chart-header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 16px;
+        }
+        .chart-title {
+            font-size: 10px; font-weight: 800; text-transform: uppercase;
+            letter-spacing: 1.5px; color: var(--blue);
+            display: flex; align-items: center; gap: 7px;
+        }
+        .chart-title::before {
+            content: ''; width: 7px; height: 7px; background: var(--blue);
+            border-radius: 50%; box-shadow: 0 0 6px var(--blue-glow);
+        }
+
+        .chart-container {
+            flex: 1; position: relative; min-height: 280px;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .chart-placeholder {
+            text-align: center; color: var(--text-m); font-size: 12px;
+            line-height: 1.6;
+        }
+        .chart-placeholder .ph-icon { font-size: 40px; display: block; margin-bottom: 10px; opacity: 0.4; }
+
+        /* Tabella comparazione vettori */
+        .vector-compare {
+            margin-top: 16px; border-top: 1px solid var(--border); padding-top: 14px;
+        }
+        .vector-compare-title {
+            font-size: 9px; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 1.2px; color: var(--gold); margin-bottom: 10px;
+        }
+        .vrow {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 8px 12px; border-radius: 8px; margin-bottom: 6px;
+            background: rgba(255,255,255,0.015);
+            border: 1px solid rgba(255,255,255,0.02);
+            transition: all 0.2s;
+        }
+        .vrow:hover { border-color: var(--glow); }
+        .vrow.optimal { border-color: rgba(0,200,81,0.25); background: rgba(0,200,81,0.04); }
+        .vrow-left { display: flex; align-items: center; gap: 8px; }
+        .vrow-icon { font-size: 18px; }
+        .vrow-name { font-size: 12px; font-weight: 600; }
+        .vrow-tag {
+            font-size: 8px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px;
+            padding: 2px 6px; border-radius: 3px;
+        }
+        .vrow-tag.best { background: rgba(0,200,81,0.15); color: var(--green); }
+        .vrow-right { text-align: right; }
+        .vrow-cost { font-size: 14px; font-weight: 800; color: var(--text); font-variant-numeric: tabular-nums; }
+        .vrow-detail { font-size: 9px; color: var(--text-m); }
+
+        /* ── PROFIT ANALYSIS ── */
+        .profit-section {
+            margin-top: 14px; border-top: 1px solid var(--border); padding-top: 14px;
+        }
+
+        .profit-bar-wrap {
+            display: flex; align-items: center; gap: 10px;
+            margin-bottom: 8px;
+        }
+        .profit-label { font-size: 11px; font-weight: 600; width: 110px; display: flex; align-items: center; gap: 6px; }
+        .profit-bar-bg {
+            flex: 1; height: 22px; background: rgba(255,255,255,0.04);
+            border-radius: 6px; overflow: hidden; position: relative;
+        }
+        .profit-bar-fill {
+            height: 100%; border-radius: 6px; transition: width 0.6s cubic-bezier(0.16,1,0.3,1);
+            display: flex; align-items: center; justify-content: flex-end; padding-right: 8px;
+            font-size: 10px; font-weight: 800; color: #fff; min-width: 40px;
+        }
+        .profit-bar-fill.positive { background: linear-gradient(90deg, rgba(0,200,81,0.6), var(--green)); }
+        .profit-bar-fill.negative { background: linear-gradient(90deg, rgba(255,68,68,0.6), var(--red)); }
+
+        /* ── AUDIT TRAIL LOG ── */
+        .audit-section {
+            grid-column: 1 / -1;
+            background: var(--card); border-radius: 18px;
+            border: 1px solid var(--border);
+            backdrop-filter: blur(40px); -webkit-backdrop-filter: blur(40px);
+            padding: 20px 22px;
+            position: relative; overflow: hidden;
+        }
+        .audit-section::before {
+            content: ''; position: absolute; top: 0; left: 0; right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--blue), var(--gold), var(--orange), var(--green));
+        }
+        .audit-title {
+            font-size: 10px; font-weight: 800; text-transform: uppercase;
+            letter-spacing: 1.5px; color: var(--gold); margin-bottom: 12px;
+            display: flex; align-items: center; gap: 7px;
+        }
+        .audit-title::before {
+            content: ''; width: 7px; height: 7px; background: var(--gold);
+            border-radius: 50%; box-shadow: 0 0 6px var(--gold-glow);
+        }
+        .audit-body {
+            font-size: 12px; color: var(--text-m); line-height: 1.7;
+            max-height: 320px; overflow-y: auto;
+        }
+        .audit-body strong { color: var(--text); }
+        .audit-body .step-tag {
+            display: inline-block; font-size: 9px; font-weight: 800;
+            color: var(--blue); background: rgba(17,141,255,0.1);
+            padding: 1px 6px; border-radius: 3px; margin-right: 4px;
+            text-transform: uppercase; letter-spacing: 0.5px;
+        }
+        .audit-body .hl-gold { color: var(--gold); font-weight: 700; }
+        .audit-body .hl-blue { color: var(--blue); font-weight: 700; }
+        .audit-body .hl-orange { color: var(--orange); font-weight: 700; }
+        .audit-body .hl-green { color: var(--green); font-weight: 700; }
+        .audit-body .hl-red { color: var(--red); font-weight: 700; }
+        .audit-divider { border: none; border-top: 1px dashed rgba(255,255,255,0.06); margin: 8px 0; }
+
+        /* ── FOOTER ── */
+        .footer {
+            grid-column: 1 / -1;
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 14px 4px 0;
+            font-size: 11px; color: var(--text-m);
+        }
+        .footer strong { color: var(--text); }
+
+        /* ── INITIAL STATE (prima del calcolo) ── */
+        .waiting-state { color: var(--text-m); font-size: 12px; text-align: center; padding: 20px; }
+        .waiting-state .ws-icon { font-size: 32px; display: block; margin-bottom: 8px; opacity: 0.3; }
+
+        /* ── RESPONSIVE ── */
+        @media (max-width: 1100px) {
+            .dashboard {
+                grid-template-columns: 280px 1fr;
+                grid-template-rows: auto auto auto;
+            }
+            .chart-area { grid-row: auto; grid-column: 2; }
+            .audit-section { grid-column: 1 / -1; }
+        }
+        @media (max-width: 768px) {
+            .dashboard {
+                grid-template-columns: 1fr;
+                padding: 12px;
+                gap: 14px;
+            }
+            .control-panel { position: static; max-height: none; grid-row: auto; }
+            .chart-area { grid-row: auto; grid-column: auto; }
+            .header { padding: 14px 16px; flex-direction: column; gap: 8px; text-align: center; }
+            .header-badges { justify-content: center; }
+            .kpi-value { font-size: 22px; }
+            .footer { flex-direction: column; gap: 6px; text-align: center; }
+        }
+
+        /* ── ASSISTENTE AI DI PROCESSO (Step 5) ── */
+        .center-column {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .assistant-card {
+            background: var(--card);
+            backdrop-filter: blur(40px);
+            -webkit-backdrop-filter: blur(40px);
+            border: 1px solid rgba(17, 141, 255, 0.15);
+            border-radius: 18px;
+            padding: 16px 20px;
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+        }
+        .assistant-card:hover {
+            border-color: rgba(17, 141, 255, 0.35);
+            box-shadow: 0 8px 30px rgba(17, 141, 255, 0.08);
+        }
+        .assistant-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 10px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--blue);
+        }
+        .assistant-sparkle {
+            font-size: 14px;
+            color: var(--gold);
+            animation: sparkle-pulse 2s infinite ease-in-out;
+        }
+        @keyframes sparkle-pulse {
+            0%, 100% { opacity: 0.5; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.2); text-shadow: 0 0 8px var(--gold-glow); }
+        }
+        .assistant-pulse-dot {
+            width: 6px;
+            height: 6px;
+            background: var(--blue);
+            border-radius: 50%;
+            margin-left: auto;
+            box-shadow: 0 0 6px var(--blue-glow);
+            animation: blink 2s infinite ease-in-out;
+        }
+        .assistant-input-wrapper {
+            display: flex;
+            gap: 10px;
+            margin-top: 12px;
+        }
+        #assistant-query {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 10px 14px;
+            color: var(--text);
+            font-size: 12px;
+            transition: all 0.3s ease;
+            outline: none;
+        }
+        #assistant-query:focus {
+            border-color: var(--blue);
+            background: rgba(255, 255, 255, 0.04);
+            box-shadow: 0 0 10px var(--blue-glow);
+        }
+        #btn-assistant-query {
+            background: linear-gradient(135deg, var(--blue), #0056b3);
+            border: none;
+            border-radius: 8px;
+            padding: 10px 18px;
+            color: #fff;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        #btn-assistant-query:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px var(--blue-glow);
+        }
+        .assistant-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            align-items: center;
+            margin-top: 10px;
+        }
+        .chip-label {
+            font-size: 9px;
+            font-weight: 700;
+            color: var(--text-m);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-right: 4px;
+        }
+        .assistant-chip {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 4px 10px;
+            color: var(--text-m);
+            font-size: 10px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .assistant-chip:hover {
+            background: rgba(17, 141, 255, 0.08);
+            border-color: rgba(17, 141, 255, 0.3);
+            color: var(--text);
+        }
+        .assistant-response {
+            margin-top: 14px;
+            padding: 12px 16px;
+            background: rgba(17, 141, 255, 0.03);
+            border-left: 3px solid var(--blue);
+            border-radius: 0 10px 10px 0;
+            font-size: 11.5px;
+            color: var(--text);
+            line-height: 1.6;
+            animation: fadeIn 0.4s cubic-bezier(0.16,1,0.3,1);
+        }
+        .assistant-response.alert-worst {
+            background: rgba(255, 68, 68, 0.05);
+            border-left-color: var(--red);
+        }
+        .assistant-response.alert-best {
+            background: rgba(0, 200, 81, 0.05);
+            border-left-color: var(--green);
+        }
+        .assistant-response.alert-duties {
+            background: rgba(242, 200, 17, 0.05);
+            border-left-color: var(--gold);
+        }
+        .assistant-response.alert-bep {
+            background: rgba(17, 141, 255, 0.05);
+            border-left-color: var(--blue);
+        }
+        .assistant-response.alert-sea {
+            background: rgba(242, 200, 17, 0.05);
+            border-left-color: var(--gold);
+        }
+        .assistant-response.alert-rail {
+            background: rgba(17, 141, 255, 0.05);
+            border-left-color: var(--blue);
+        }
+        .assistant-response.alert-road {
+            background: rgba(255, 68, 68, 0.05);
+            border-left-color: var(--red);
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* AI Dynamic Highlight Animations */
+        .kpi-highlight-pulse {
+            animation: kpiGlow 1.5s infinite ease-in-out !important;
+            transform: translateY(-4px);
+            z-index: 10;
+        }
+        @keyframes kpiGlow {
+            0%, 100% { box-shadow: 0 0 10px rgba(255,255,255,0.05), inset 0 0 0 1px var(--border); }
+            50% { box-shadow: 0 0 25px var(--glow-color, var(--blue-glow)), inset 0 0 0 2px var(--glow-border, var(--blue)); }
+        }
+
+        .vrow-highlight-pulse {
+            animation: vrowGlow 1.5s infinite ease-in-out !important;
+            border-color: var(--glow-border, var(--blue)) !important;
+            background: var(--glow-bg, rgba(17, 141, 255, 0.05)) !important;
+        }
+        @keyframes vrowGlow {
+            0%, 100% { transform: scale(1); box-shadow: none; }
+            50% { transform: scale(1.02); box-shadow: 0 4px 15px var(--glow-color, var(--blue-glow)); }
+        }
+
+        .profit-highlight-pulse {
+            animation: profitGlow 1.5s infinite ease-in-out !important;
+        }
+        @keyframes profitGlow {
+            0%, 100% { filter: brightness(1); }
+            50% { filter: brightness(1.3); box-shadow: 0 0 10px var(--glow-color, var(--blue-glow)); }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ══════════ HEADER ══════════ -->
+<div class="header">
+    <div class="header-left">
+        <div class="header-icon">🗼</div>
+        <div>
+            <h1>Logistics Control Tower 4.0</h1>
+            <span class="header-sub">Import Doganale • Ottimizzazione Vettori • Break-Even Analysis</span>
+        </div>
+    </div>
+    <div class="header-badges">
+        <span class="badge-status">Engine Active</span>
+        <span class="badge-v">Tower v4.0</span>
+    </div>
+</div>
+
+<!-- ══════════ DASHBOARD GRID ══════════ -->
+<div class="dashboard">
+
+    <!-- ────── COLONNA SINISTRA: PANNELLO DI CONTROLLO ────── -->
+    <div class="control-panel">
+        <div class="panel-header">
+            <div class="panel-title">Pannello di Controllo</div>
+        </div>
+        <div class="panel-body">
+
+            <!-- Drag & Drop CSV -->
+            <div class="drop-zone" id="drop-zone">
+                <span class="drop-icon">📂</span>
+                <span class="drop-text">Trascina qui un file <strong>CSV</strong> con i dati dell'ordine<br>oppure <strong>clicca</strong> per selezionare</span>
+                <span class="drop-file-info" id="drop-info"></span>
+                <input type="file" id="file-input" accept=".csv,.txt" style="display:none">
+            </div>
+
+            <hr class="sep">
+            <div class="section-label">📦 Dati Importazione</div>
+
+            <div class="fg">
+                <label>Valore Merce in Fattura (€)<span class="hint">FOB</span></label>
+                <input type="number" id="in-value" value="10000" min="0" step="100">
+            </div>
+            <div class="fg">
+                <label>Trasporto Internazionale (€)<span class="hint">Nolo</span></label>
+                <input type="number" id="in-freight" value="800" min="0" step="50">
+            </div>
+            <div class="fg">
+                <label>Assicurazione (€)<span class="hint">All-risk</span></label>
+                <input type="number" id="in-insurance" value="120" min="0" step="10">
+            </div>
+            <div class="fg">
+                <label>Tipologia Merce</label>
+                <select id="in-taric"></select>
+            </div>
+            <div class="fg">
+                <label>Spese Interne UE (€)<span class="hint">Sdogan. + trasporto</span></label>
+                <input type="number" id="in-eucosts" value="200" min="0" step="50">
+            </div>
+
+            <hr class="sep">
+            <div class="section-label">🚛 Distribuzione & Vendita</div>
+
+            <div class="fg">
+                <label>Unità da Spedire<span class="hint">pallet</span></label>
+                <input type="number" id="in-units" value="100" min="1" step="1">
+            </div>
+            <div class="fg">
+                <label>Prezzo di Vendita (€/unità)<span class="hint">Mercato locale</span></label>
+                <input type="number" id="in-sell" value="200" min="0" step="5">
+            </div>
+            <div class="fg">
+                <label>Tratta Distribuzione</label>
+                <select id="in-route"></select>
+            </div>
+
+            <button class="btn-calc" id="btn-calc" onclick="runAnalysis()">⚡ Calcola Analisi Completa</button>
+        </div>
+    </div>
+
+    <!-- ────── CENTRO: ASSISTENTE AI & KPI CARDS ────── -->
+    <div class="center-column">
+        <!-- Query Assistente di Processo -->
+        <div class="assistant-card">
+            <div class="assistant-header">
+                <span class="assistant-sparkle">✦</span>
+                <span>Assistente di Processo AI (Simulazione)</span>
+                <span class="assistant-pulse-dot"></span>
+            </div>
+            <div class="assistant-input-wrapper">
+                <input type="text" id="assistant-query" placeholder="Scrivi un comando (es. 'Mostrami tratta non conveniente')..." autocomplete="off">
+                <button id="btn-assistant-query" onclick="processAssistantQuery()">Chiedi</button>
+            </div>
+            <div class="assistant-chips">
+                <span class="chip-label">Suggeriti:</span>
+                <button class="assistant-chip" onclick="applyQuery('Mostrami tratta non conveniente')">Tratta peggiore</button>
+                <button class="assistant-chip" onclick="applyQuery('Evidenzia dazio maggiore')">Dazio maggiore</button>
+                <button class="assistant-chip" onclick="applyQuery('Qual è il vettore ottimale?')">Vettore ottimale</button>
+                <button class="assistant-chip" onclick="applyQuery('Mostra BEP')">BEP</button>
+                <button class="assistant-chip" onclick="applyQuery('Azzera filtri')">Reset</button>
+            </div>
+            <div class="assistant-response" id="assistant-response" style="display: none;"></div>
+        </div>
+
+        <div class="kpi-grid" id="kpi-grid">
+            <div class="kpi gold-bar" id="card-landed">
+                <span class="kpi-emoji">📦</span>
+                <span class="kpi-label">Landed Cost / Unità</span>
+                <span class="kpi-value" id="kpi-landed">— €</span>
+                <span class="kpi-sub" id="kpi-landed-sub">In attesa di calcolo</span>
+            </div>
+            <div class="kpi blue-bar" id="card-duties">
+                <span class="kpi-emoji">🏛️</span>
+                <span class="kpi-label">Totale Oneri Doganali</span>
+                <span class="kpi-value" id="kpi-duties">— €</span>
+                <span class="kpi-sub" id="kpi-duties-sub">Dazio + IVA</span>
+            </div>
+            <div class="kpi green-bar" id="card-vector">
+                <span class="kpi-emoji">🏆</span>
+                <span class="kpi-label">Vettore Ottimale</span>
+                <span class="kpi-value" id="kpi-vector">—</span>
+                <span class="kpi-sub" id="kpi-vector-sub">Al volume inserito</span>
+            </div>
+            <div class="kpi dark-bar" id="card-bep">
+                <span class="kpi-emoji">📊</span>
+                <span class="kpi-label">BEP (Break-Even Units)</span>
+                <span class="kpi-value" id="kpi-bep">—</span>
+                <span class="kpi-sub" id="kpi-bep-sub">Unità per pareggio</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ────── DESTRA: AREA GRAFICO + CONFRONTO VETTORI ────── -->
+    <div class="chart-area">
+        <div class="chart-header">
+            <div class="chart-title">Analisi Comparativa Vettori</div>
+        </div>
+
+        <!-- Qui Chart.js renderizzerà nello Step 4 -->
+        <div class="chart-container">
+            <canvas id="main-chart" style="display:none;"></canvas>
+            <div class="chart-placeholder" id="chart-ph">
+                <span class="ph-icon">📈</span>
+                Esegui un calcolo per visualizzare<br>il grafico interattivo dei costi
+            </div>
+        </div>
+
+        <!-- Confronto vettori -->
+        <div class="vector-compare" id="vector-compare" style="display:none;">
+            <div class="vector-compare-title">⚡ Confronto Vettori sulla Tratta</div>
+            <div id="vector-rows"></div>
+        </div>
+
+        <!-- Profittabilità -->
+        <div class="profit-section" id="profit-section" style="display:none;">
+            <div class="vector-compare-title">💰 Analisi Profittabilità per Vettore</div>
+            <div id="profit-bars"></div>
+        </div>
+    </div>
+
+    <!-- ────── AUDIT TRAIL LOG ────── -->
+    <div class="audit-section">
+        <div class="audit-title">📜 Audit Trail — Analisi End-to-End</div>
+        <div class="audit-body" id="audit-log">
+            <div class="waiting-state">
+                <span class="ws-icon">⚙️</span>
+                Configura i parametri e premi <strong>Calcola</strong> per generare l'analisi dettagliata del flusso logistico completo:
+                Fornitore Extra-UE → Dogana → Hub Italia → Distribuzione → Mercato
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+        <span>Sviluppato da: <strong>Luca R.</strong> • GOL Logistica 4.0</span>
+        <span class="badge-v">Control Tower Engine 4.0</span>
+    </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════════════
+     JAVASCRIPT: MOTORI STEP 1 + 2 (invariati) + UI CONTROLLER STEP 3
+     ══════════════════════════════════════════════════════════════════ -->
+<script>
+    // Variabili di stato globale per l'Assistente AI (Step 5)
+    let latestImportResult = null;
+    let latestAnalysis = null;
+
+    // ═══════════════════════════════════════════════════════════════
+    //  SEZIONE 1: DATABASE TARIC LOCALE (Step 1 — invariato)
+    // ═══════════════════════════════════════════════════════════════
+    const TARIC_DB = [
+        { code:'8517130000', description:'Smartphone e tablet per reti cellulari/wireless', category:'Elettronica', dutyRate:0.0, vatRate:22, notes:'Esenti da dazio — ITA Agreement' },
+        { code:'8471300000', description:'Computer portatili (laptop, notebook, ultrabook)', category:'Elettronica', dutyRate:0.0, vatRate:22, notes:'Esenti da dazio — ITA Agreement WTO' },
+        { code:'8528720000', description:'Apparecchi televisori e monitor a colori', category:'Elettronica', dutyRate:14.0, vatRate:22, notes:'NON coperto dall\'accordo ITA' },
+        { code:'8518300000', description:'Cuffie, auricolari e sistemi audio personali', category:'Elettronica', dutyRate:2.0, vatRate:22, notes:'Dazio ridotto per audio consumer' },
+        { code:'6109100010', description:'T-shirt e magliette di cotone, a maglia', category:'Abbigliamento', dutyRate:12.0, vatRate:22, notes:'Settore tessile protetto' },
+        { code:'6110200000', description:'Maglioni, pullover e cardigan in cotone', category:'Abbigliamento', dutyRate:12.0, vatRate:22, notes:'Tessile cotone lavorato a maglia' },
+        { code:'6403990000', description:'Calzature con tomaia in pelle naturale', category:'Abbigliamento', dutyRate:8.0, vatRate:22, notes:'Voce generica calzature pelle' },
+        { code:'6402990000', description:'Calzature in gomma o plastica', category:'Abbigliamento', dutyRate:16.9, vatRate:22, notes:'Dazio molto alto (~17%)' },
+        { code:'8703801010', description:'Autoveicoli elettrici puri (BEV)', category:'Automotive', dutyRate:10.0, vatRate:22, notes:'Possibili dazi anti-dumping aggiuntivi' },
+        { code:'8708299090', description:'Parti e accessori per autoveicoli', category:'Automotive', dutyRate:4.5, vatRate:22, notes:'Voce residuale ricambi' },
+        { code:'8712000000', description:'Biciclette e velocipedi senza motore', category:'Automotive', dutyRate:14.0, vatRate:22, notes:'Settore protetto vs Asia' },
+        { code:'8541430000', description:'Pannelli fotovoltaici e moduli solari', category:'Energia', dutyRate:0.0, vatRate:10, notes:'IVA ridotta 10% — efficienza energetica' },
+        { code:'8481809900', description:'Valvole industriali e rubinetteria', category:'Energia', dutyRate:2.0, vatRate:22, notes:'Componentistica industriale' },
+        { code:'0901210000', description:'Caffè torrefatto, non decaffeinato', category:'Alimentare', dutyRate:7.5, vatRate:22, notes:'Commodity agricola' },
+        { code:'2204210000', description:'Vino in recipienti ≤ 2 litri', category:'Alimentare', dutyRate:13.1, vatRate:22, notes:'Protezione vinicoltori UE' },
+        { code:'0402101100', description:'Latte scremato in polvere ≤ 2,5 kg', category:'Alimentare', dutyRate:7.0, vatRate:4, notes:'IVA super-ridotta 4%' },
+        { code:'4202210000', description:'Borse a mano in pelle naturale', category:'Accessori', dutyRate:3.0, vatRate:22, notes:'Pelletteria di lusso' },
+        { code:'9503000000', description:'Giocattoli, puzzle e articoli divertimento', category:'Accessori', dutyRate:0.0, vatRate:22, notes:'Esenti da dazio' }
+    ];
+
+    // ═══════════════════════════════════════════════════════════════
+    //  SEZIONE 2: LOOKUP TARIC (Step 1 — invariato)
+    // ═══════════════════════════════════════════════════════════════
+    function lookupTARIC(code) {
+        const c = String(code).trim();
+        if (!/^\d{10}$/.test(c)) return null;
+        return TARIC_DB.find(i => i.code === c) || null;
+    }
+    function getByCategory(cat) { return TARIC_DB.filter(i => i.category.toLowerCase() === cat.toLowerCase()); }
+    function getCategories() { return [...new Set(TARIC_DB.map(i => i.category))]; }
+
+    // ═══════════════════════════════════════════════════════════════
+    //  SEZIONE 3: MOTORE FISCALE A CASCATA (Step 1 — invariato)
+    // ═══════════════════════════════════════════════════════════════
+    function processImportData(productValue, freightCost, insurance, taricCode, euInternalCosts, overrides = {}) {
+        const ni = { productValue, freightCost, insurance, euInternalCosts };
+        for (const [name, value] of Object.entries(ni)) {
+            if (typeof value !== 'number' || isNaN(value) || value < 0)
+                return { success: false, error: `"${name}" non valido (ricevuto: ${value})` };
+        }
+        const rec = lookupTARIC(taricCode);
+        let dutyRate, vatRate, desc, cat, notes;
+        if (overrides.dutyRate !== undefined && overrides.vatRate !== undefined) {
+            dutyRate = overrides.dutyRate; vatRate = overrides.vatRate;
+            desc = rec ? rec.description : 'Aliquote manuali'; cat = rec ? rec.category : 'Custom'; notes = '';
+        } else if (rec) {
+            dutyRate = rec.dutyRate; vatRate = rec.vatRate; desc = rec.description; cat = rec.category; notes = rec.notes;
+        } else {
+            return { success: false, error: `TARIC "${taricCode}" non trovato. Usa override.` };
+        }
+        const cifValue = productValue + freightCost + insurance;
+        const customsDuty = cifValue * (dutyRate / 100);
+        const vatTaxBase = cifValue + customsDuty + euInternalCosts;
+        const importVAT = vatTaxBase * (vatRate / 100);
+        const landedCost = cifValue + customsDuty + importVAT + euInternalCosts;
+        const totalDuties = customsDuty + importVAT;
+        const fiscalImpact = productValue > 0 ? (totalDuties / productValue) * 100 : 0;
+        const linearVAT = productValue * (vatRate / 100);
+        const cascadeEffect = importVAT - linearVAT;
+        return {
+            success: true,
+            product: { taricCode, description: desc, category: cat, notes },
+            inputs: { productValue, freightCost, insurance, euInternalCosts, dutyRate, vatRate },
+            cascade: { cifValue: r2(cifValue), customsDuty: r2(customsDuty), vatTaxBase: r2(vatTaxBase), importVAT: r2(importVAT), landedCost: r2(landedCost) },
+            analytics: { totalDuties: r2(totalDuties), fiscalImpact: r2(fiscalImpact), cascadeEffect: r2(cascadeEffect), linearVAT: r2(linearVAT) },
+            timestamp: new Date().toISOString()
+        };
+    }
+    function r2(n) { return Math.round(n * 100) / 100; }
+    function fmt(n) { return n.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €'; }
+
+    // ═══════════════════════════════════════════════════════════════
+    //  SEZIONE 5: VETTORI DI TRASPORTO (Step 2 — invariato)
+    // ═══════════════════════════════════════════════════════════════
+    const TRANSPORT_VECTORS = {
+        road: { id:'road', name:'Gomma (FTL)', icon:'🚛', color:'#FF4444', fixedCostPerShipment:180, costPerKm:1.45, handlingPerUnit:12, capacityPerTrip:33, transitHoursPer1000km:14, co2PerTonKm:62 },
+        rail: { id:'rail', name:'Intermodale Treno', icon:'🚂', color:'#118DFF', fixedCostPerShipment:950, costPerKm:0.38, handlingPerUnit:7, capacityPerTrip:60, transitHoursPer1000km:22, co2PerTonKm:22 },
+        sea:  { id:'sea',  name:'Cabotaggio Nave', icon:'🚢', color:'#F2C811', fixedCostPerShipment:2800, costPerKm:0.09, handlingPerUnit:4, capacityPerTrip:180, transitHoursPer1000km:38, co2PerTonKm:31 }
+    };
+    const PRESET_ROUTES = [
+        { id:'verona-palermo', name:'Verona → Palermo', roadKm:1250, railKm:1420, seaKm:2150 },
+        { id:'milano-napoli', name:'Milano → Napoli', roadKm:780, railKm:860, seaKm:1580 },
+        { id:'genova-catania', name:'Genova → Catania', roadKm:1350, railKm:1500, seaKm:1820 },
+        { id:'bologna-bari', name:'Bologna → Bari', roadKm:670, railKm:740, seaKm:1450 },
+        { id:'torino-reggiocalabria', name:'Torino → Reggio Calabria', roadKm:1320, railKm:1480, seaKm:2000 }
+    ];
+
+    // ═══════════════════════════════════════════════════════════════
+    //  SEZIONE 6-8: MOTORE BEP + ANALISI (Step 2 — invariato)
+    // ═══════════════════════════════════════════════════════════════
+    function calculateShipmentCost(v, d) { return v.fixedCostPerShipment + (d * v.costPerKm); }
+
+    function calculateTotalTransportCost(v, d, u) {
+        if (u <= 0) return { totalCost:0, numTrips:0, tripCost:0, handlingCost:0, costPerUnit:0, transitHours:0, co2Total:0 };
+        const nt = Math.ceil(u / v.capacityPerTrip);
+        const tc = calculateShipmentCost(v, d);
+        const th = u * v.handlingPerUnit;
+        const tot = nt * tc + th;
+        return { totalCost:r2(tot), numTrips:nt, tripCost:r2(tc), handlingCost:r2(th), costPerUnit:r2(tot/u), transitHours:r2((d/1000)*v.transitHoursPer1000km), co2Total:r2((v.co2PerTonKm*0.5*d*u)/1000) };
+    }
+
+    function calculateVectorBEP(lc, sp, v, d) {
+        const fc = calculateShipmentCost(v, d);
+        const vc = lc + v.handlingPerUnit;
+        const cm = sp - vc;
+        if (cm <= 0) return { success:false, vectorId:v.id, vectorName:v.name, fixedCosts:r2(fc), variableCostPerUnit:r2(vc), contributionMargin:r2(cm), bepUnits:Infinity, bepRevenue:Infinity };
+        const bu = fc / cm;
+        const buc = Math.ceil(bu);
+        return { success:true, vectorId:v.id, vectorName:v.name, vectorIcon:v.icon, fixedCosts:r2(fc), variableCostPerUnit:r2(vc), contributionMargin:r2(cm), bepUnits:buc, bepUnitsExact:r2(bu), bepRevenue:r2(buc*sp), bepTotalCost:r2(fc+vc*buc), profitPerUnit:r2(cm), transitHours:r2((d/1000)*v.transitHoursPer1000km) };
+    }
+
+    function findCrossoverPoints(lc, route) {
+        const vecs = [
+            { ...TRANSPORT_VECTORS.road, distance:route.roadKm },
+            { ...TRANSPORT_VECTORS.rail, distance:route.railKm },
+            { ...TRANSPORT_VECTORS.sea,  distance:route.seaKm }
+        ];
+        const cp = [];
+        for (let i=0; i<vecs.length; i++) {
+            for (let j=i+1; j<vecs.length; j++) {
+                const a=vecs[i], b=vecs[j];
+                const fA=calculateShipmentCost(a,a.distance), fB=calculateShipmentCost(b,b.distance);
+                const vA=a.handlingPerUnit, vB=b.handlingPerUnit;
+                if (vA===vB) { cp.push({vectorA:a.name,vectorB:b.name,crossoverUnits:null,note:'Rette parallele'}); continue; }
+                const cN=(fA-fB)/(vB-vA);
+                if (cN>0) { cp.push({vectorA:a.name,vectorB:b.name,crossoverUnits:r2(cN),crossoverUnitsCeil:Math.ceil(cN),costAtCrossover:r2(fA+vA*cN),cheaperBelow:fA<fB?a.name:b.name,cheaperAbove:vA<vB?a.name:b.name,note:`Sopra ${Math.ceil(cN)} unità, ${vA<vB?a.name:b.name} conviene`}); }
+                else { cp.push({vectorA:a.name,vectorB:b.name,crossoverUnits:null,note:`${(fA+vA)<(fB+vB)?a.name:b.name} sempre più conveniente`}); }
+            }
+        }
+        return cp;
+    }
+
+    function findOptimalVector(u, route) {
+        const res = [
+            { vector:TRANSPORT_VECTORS.road, distance:route.roadKm },
+            { vector:TRANSPORT_VECTORS.rail, distance:route.railKm },
+            { vector:TRANSPORT_VECTORS.sea,  distance:route.seaKm }
+        ].map(({vector,distance}) => {
+            const c=calculateTotalTransportCost(vector,distance,u);
+            return { vectorId:vector.id, vectorName:vector.name, vectorIcon:vector.icon, vectorColor:vector.color, distance, ...c };
+        });
+        res.sort((a,b) => a.totalCost - b.totalCost);
+        return { optimal:res[0], all:res, savings:r2(res[res.length-1].totalCost - res[0].totalCost) };
+    }
+
+    function generateFullAnalysis(ir, sp, us, route, upi=null) {
+        if (!ir||!ir.success) return {success:false, error:'ImportResult non valido'};
+        const q=upi||us;
+        const lcu=r2(ir.cascade.landedCost/q);
+        const bR=calculateVectorBEP(lcu,sp,TRANSPORT_VECTORS.road,route.roadKm);
+        const bI=calculateVectorBEP(lcu,sp,TRANSPORT_VECTORS.rail,route.railKm);
+        const bS=calculateVectorBEP(lcu,sp,TRANSPORT_VECTORS.sea,route.seaKm);
+        const opt=findOptimalVector(us,route);
+        const cx=findCrossoverPoints(lcu,route);
+        const pa=opt.all.map(v=>{
+            const rev=sp*us, gc=lcu*us, tc=gc+v.totalCost, pr=rev-tc, mg=rev>0?(pr/rev)*100:0;
+            return {vectorName:v.vectorName,vectorIcon:v.vectorIcon,revenue:r2(rev),goodsCost:r2(gc),transportCost:v.totalCost,totalCost:r2(tc),profit:r2(pr),marginPercent:r2(mg),isProfitable:pr>0};
+        });
+        return { success:true, context:{route:route.name,product:ir.product.description,landedCostPerUnit:lcu,sellingPrice:sp,unitsToShip:us}, bep:{road:bR,rail:bI,sea:bS}, optimal:opt, crossovers:cx, profitAnalysis:pa };
+    }
+
+
+    // ═══════════════════════════════════════════════════════════════
+    //  SEZIONE 10: UI CONTROLLER (Step 3 — NUOVO)
+    // ═══════════════════════════════════════════════════════════════
+
+    /**
+     * Popola i dropdown dalla configurazione del motore.
+     * Viene chiamata all'avvio: riempie il select TARIC e quello delle rotte.
+     */
+    function populateUI() {
+        // Dropdown TARIC: raggruppato per categoria
+        const selTaric = document.getElementById('in-taric');
+        const cats = getCategories();
+        cats.forEach(cat => {
+            const og = document.createElement('optgroup');
+            og.label = cat;
+            getByCategory(cat).forEach(item => {
+                const opt = document.createElement('option');
+                opt.value = item.code;
+                opt.textContent = `${item.description} (${item.dutyRate}%)`;
+                og.appendChild(opt);
+            });
+            selTaric.appendChild(og);
+        });
+
+        // Dropdown rotte
+        const selRoute = document.getElementById('in-route');
+        PRESET_ROUTES.forEach(r => {
+            const opt = document.createElement('option');
+            opt.value = r.id;
+            opt.textContent = `${r.name} (${r.roadKm} km strada)`;
+            selRoute.appendChild(opt);
+        });
+    }
+
+
+    /**
+     * FUNZIONE PRINCIPALE UI: esegue l'analisi completa
+     * e aggiorna tutte le sezioni della dashboard.
+     */
+    function runAnalysis() {
+        // Reset delle evidenziazioni dell'assistente AI se calcolato manualmente
+        resetHighlights();
+        const responseEl = document.getElementById('assistant-response');
+        if (responseEl) responseEl.style.display = 'none';
+        const queryEl = document.getElementById('assistant-query');
+        if (queryEl) queryEl.value = '';
+
+        // Leggiamo tutti i valori dal form
+        const pv = parseFloat(document.getElementById('in-value').value) || 0;
+        const fr = parseFloat(document.getElementById('in-freight').value) || 0;
+        const ins = parseFloat(document.getElementById('in-insurance').value) || 0;
+        const taric = document.getElementById('in-taric').value;
+        const eu = parseFloat(document.getElementById('in-eucosts').value) || 0;
+        const units = parseInt(document.getElementById('in-units').value) || 1;
+        const sell = parseFloat(document.getElementById('in-sell').value) || 0;
+        const routeId = document.getElementById('in-route').value;
+        const route = PRESET_ROUTES.find(r => r.id === routeId);
+
+        // Step 1: Calcolo doganale
+        const importResult = processImportData(pv, fr, ins, taric, eu);
+        if (!importResult.success) {
+            document.getElementById('audit-log').innerHTML = `<div style="color:var(--red)">❌ Errore: ${importResult.error}</div>`;
+            return;
+        }
+
+        // Step 2: Analisi completa
+        const analysis = generateFullAnalysis(importResult, sell, units, route, units);
+        if (!analysis.success) {
+            document.getElementById('audit-log').innerHTML = `<div style="color:var(--red)">❌ Errore: ${analysis.error}</div>`;
+            return;
+        }
+
+        // Salva l'ultimo stato calcolato per l'assistente AI
+        latestImportResult = importResult;
+        latestAnalysis = analysis;
+
+        // Aggiorniamo la dashboard
+        updateKPIs(importResult, analysis);
+        updateVectorCompare(analysis);
+        updateProfitBars(analysis);
+        updateAuditLog(importResult, analysis);
+        renderChart(importResult, analysis);
+    }
+
+
+    /**
+     * Aggiorna le 4 KPI cards con i risultati.
+     */
+    function updateKPIs(ir, an) {
+        // KPI 1: Landed Cost per unità
+        setKPI('kpi-landed', fmt(an.context.landedCostPerUnit));
+        document.getElementById('kpi-landed-sub').textContent = `Totale ordine: ${fmt(ir.cascade.landedCost)}`;
+
+        // KPI 2: Totale Oneri
+        setKPI('kpi-duties', fmt(ir.analytics.totalDuties));
+        document.getElementById('kpi-duties-sub').textContent = `Incidenza: ${ir.analytics.fiscalImpact}% sul valore merce`;
+
+        // KPI 3: Vettore ottimale
+        const opt = an.optimal.optimal;
+        setKPI('kpi-vector', `${opt.vectorIcon} ${opt.vectorName.split(' ')[0]}`);
+        document.getElementById('kpi-vector-sub').textContent = `${fmt(opt.costPerUnit)}/u — Risparmio: ${fmt(an.optimal.savings)}`;
+
+        // KPI 4: BEP
+        const bestBep = [an.bep.road, an.bep.rail, an.bep.sea]
+            .filter(b => b.success)
+            .sort((a,b) => a.bepUnits - b.bepUnits)[0];
+        if (bestBep) {
+            setKPI('kpi-bep', `${bestBep.bepUnits} u`);
+            document.getElementById('kpi-bep-sub').textContent = `${bestBep.vectorName} — Fatturato: ${fmt(bestBep.bepRevenue)}`;
+        } else {
+            setKPI('kpi-bep', '∞');
+            document.getElementById('kpi-bep-sub').textContent = 'Margine negativo su tutti i vettori';
+        }
+    }
+
+    function setKPI(id, value) {
+        const el = document.getElementById(id);
+        el.textContent = value;
+        el.classList.remove('kpi-pop');
+        void el.offsetWidth;
+        el.classList.add('kpi-pop');
+    }
+
+
+    /**
+     * Aggiorna la sezione di confronto vettori (destra).
+     */
+    function updateVectorCompare(an) {
+        const container = document.getElementById('vector-rows');
+        const section = document.getElementById('vector-compare');
+        section.style.display = 'block';
+
+        let html = '';
+        an.optimal.all.forEach((v, i) => {
+            const isOpt = i === 0;
+            html += `
+                <div class="vrow ${isOpt ? 'optimal' : ''}" id="vrow-${v.vectorId}">
+                    <div class="vrow-left">
+                        <span class="vrow-icon">${v.vectorIcon}</span>
+                        <span class="vrow-name">${v.vectorName}</span>
+                        ${isOpt ? '<span class="vrow-tag best">Ottimale</span>' : ''}
+                    </div>
+                    <div class="vrow-right">
+                        <div class="vrow-cost">${fmt(v.totalCost)}</div>
+                        <div class="vrow-detail">${v.numTrips} viaggio/i • ${fmt(v.costPerUnit)}/u • ${v.transitHours}h transit</div>
+                    </div>
+                </div>
+            `;
+        });
+        container.innerHTML = html;
+    }
+
+
+    /**
+     * Aggiorna le barre di profittabilità.
+     */
+    function updateProfitBars(an) {
+        const container = document.getElementById('profit-bars');
+        const section = document.getElementById('profit-section');
+        section.style.display = 'block';
+
+        // Troviamo il valore assoluto massimo per scalare le barre
+        const maxAbs = Math.max(...an.profitAnalysis.map(p => Math.abs(p.profit)), 1);
+
+        let html = '';
+        an.profitAnalysis.forEach(pa => {
+            const pct = Math.min(Math.abs(pa.profit) / maxAbs * 100, 100);
+            const cls = pa.isProfitable ? 'positive' : 'negative';
+            const sign = pa.isProfitable ? '+' : '';
+            html += `
+                <div class="profit-bar-wrap" id="profit-bar-${pa.vectorId}">
+                    <div class="profit-label">${pa.vectorIcon} ${pa.vectorName.split(' ')[0]}</div>
+                    <div class="profit-bar-bg">
+                        <div class="profit-bar-fill ${cls}" style="width:${pct}%">${sign}${fmt(pa.profit)}</div>
+                    </div>
+                </div>
+            `;
+        });
+        container.innerHTML = html;
+    }
+
+
+    /**
+     * Genera l'Audit Trail educativo — il cuore didattico della Control Tower.
+     */
+    function updateAuditLog(ir, an) {
+        const log = document.getElementById('audit-log');
+        const c = ir.cascade;
+        const i = ir.inputs;
+        const ctx = an.context;
+        const opt = an.optimal.optimal;
+
+        // BEP migliore
+        const beps = [an.bep.road, an.bep.rail, an.bep.sea].filter(b => b.success).sort((a,b) => a.bepUnits - b.bepUnits);
+        const bestBep = beps[0];
+
+        log.innerHTML = `
+            <span class="step-tag">Import</span> <strong>Prodotto:</strong> ${ir.product.description} (TARIC: <span class="hl-blue">${ir.product.taricCode}</span>)<br>
+            <span class="step-tag">Rotta</span> <strong>Distribuzione:</strong> <span class="hl-blue">${ctx.route}</span> — ${ctx.unitsToShip} unità a ${fmt(ctx.sellingPrice)}/u
+            <hr class="audit-divider">
+
+            <span class="step-tag">Step 1</span> <strong>Valore CIF</strong> = Merce (<span class="hl-blue">${fmt(i.productValue)}</span>) + Nolo (<span class="hl-blue">${fmt(i.freightCost)}</span>) + Assicurazione (<span class="hl-blue">${fmt(i.insurance)}</span>) = <strong>${fmt(c.cifValue)}</strong>
+            <hr class="audit-divider">
+            <span class="step-tag">Step 2</span> <strong>Dazio</strong> = CIF × ${i.dutyRate}% = <span class="hl-gold">${fmt(c.customsDuty)}</span>
+            <hr class="audit-divider">
+            <span class="step-tag">Step 3</span> <strong>Base IVA</strong> = CIF + Dazio + Spese UE = ${fmt(c.cifValue)} + ${fmt(c.customsDuty)} + ${fmt(i.euInternalCosts)} = <strong>${fmt(c.vatTaxBase)}</strong>
+            <hr class="audit-divider">
+            <span class="step-tag">Step 4</span> <strong>IVA Import</strong> = Base × ${i.vatRate}% = <span class="hl-gold">${fmt(c.importVAT)}</span>
+            <hr class="audit-divider">
+            <span class="step-tag">Step 5</span> <strong>Landed Cost Totale</strong> = <span class="hl-orange">${fmt(c.landedCost)}</span> → <strong>Per unità:</strong> <span class="hl-orange">${fmt(ctx.landedCostPerUnit)}</span>
+            <hr class="audit-divider">
+            <span class="step-tag">Cascata</span> L'effetto cascata ha generato <span class="hl-orange">${fmt(ir.analytics.cascadeEffect)}</span> di IVA extra rispetto al calcolo lineare. Incidenza fiscale: <strong>${ir.analytics.fiscalImpact}%</strong>
+            <hr class="audit-divider">
+
+            <span class="step-tag">Trasporto</span> <strong>Vettore Ottimale:</strong> ${opt.vectorIcon} <span class="hl-green">${opt.vectorName}</span> — Costo: ${fmt(opt.totalCost)} (${opt.numTrips} viaggio/i, ${fmt(opt.costPerUnit)}/u)<br>
+            Risparmio vs peggiore: <span class="hl-green">${fmt(an.optimal.savings)}</span>
+            <hr class="audit-divider">
+
+            ${bestBep ? `<span class="step-tag">BEP</span> Il punto di pareggio più basso è con <strong>${bestBep.vectorName}</strong>: servono almeno <span class="hl-gold">${bestBep.bepUnits} unità</span> per coprire i costi fissi (${fmt(bestBep.fixedCosts)}). Margine di contribuzione: ${fmt(bestBep.contributionMargin)}/u.` : '<span class="step-tag">BEP</span> <span class="hl-red">Nessun vettore raggiunge il pareggio con questi parametri.</span>'}
+            <hr class="audit-divider">
+
+            <span class="step-tag">Profitto</span>
+            ${an.profitAnalysis.map(pa => {
+                const icon = pa.isProfitable ? '✅' : '❌';
+                return `${icon} <strong>${pa.vectorName}:</strong> ${pa.isProfitable ? '<span class="hl-green">+'+fmt(pa.profit)+'</span>' : '<span class="hl-red">'+fmt(pa.profit)+'</span>'} (margine ${pa.marginPercent}%)`;
+            }).join('<br>')}
+        `;
+    }
+
+
+    /**
+     * Gestione Drag & Drop per caricamento CSV.
+     */
+    function setupDragDrop() {
+        const zone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('file-input');
+        const info = document.getElementById('drop-info');
+
+        zone.addEventListener('click', () => fileInput.click());
+        zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
+        zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+        zone.addEventListener('drop', e => {
+            e.preventDefault(); zone.classList.remove('dragover');
+            const file = e.dataTransfer.files[0];
+            if (file) parseCSV(file);
+        });
+        fileInput.addEventListener('change', e => { if (e.target.files[0]) parseCSV(e.target.files[0]); });
+
+        function parseCSV(file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const lines = e.target.result.split('\n').filter(l => l.trim());
+                    if (lines.length < 2) throw new Error('File vuoto');
+
+                    // Assumiamo header: value,freight,insurance,taric,eucosts,units,sell,route
+                    const headers = lines[0].toLowerCase().split(/[,;]/);
+                    const values = lines[1].split(/[,;]/);
+
+                    const map = {};
+                    headers.forEach((h, i) => map[h.trim()] = (values[i] || '').trim());
+
+                    if (map.value) document.getElementById('in-value').value = map.value;
+                    if (map.freight) document.getElementById('in-freight').value = map.freight;
+                    if (map.insurance) document.getElementById('in-insurance').value = map.insurance;
+                    if (map.eucosts) document.getElementById('in-eucosts').value = map.eucosts;
+                    if (map.units) document.getElementById('in-units').value = map.units;
+                    if (map.sell) document.getElementById('in-sell').value = map.sell;
+
+                    info.textContent = `✅ ${file.name} caricato — ${lines.length - 1} record importati`;
+                    info.style.display = 'block';
+                } catch (err) {
+                    info.textContent = `❌ Errore nel parsing: ${err.message}`;
+                    info.style.display = 'block';
+                    info.style.color = 'var(--red)';
+                }
+            };
+            reader.readAsText(file);
+        }
+    }
+
+
+    // ═══════════════════════════════════════════════════════════════
+    //  SEZIONE 11: CHART.JS — GRAFICO INTERATTIVO (Step 4)
+    // ═══════════════════════════════════════════════════════════════
+    //
+    //  Questo grafico mostra 4 curve sovrapposte:
+    //  - 3 curve di COSTO TOTALE (una per vettore: Gomma, Treno, Nave)
+    //  - 1 retta di RICAVO (prezzo vendita × unità)
+    //
+    //  I punti in cui le curve di costo intersecano la retta di ricavo
+    //  sono i Break-Even Points per ogni vettore.
+    //  Vengono evidenziati con annotazioni verticali tratteggiate.
+    //
+
+    let mainChartInstance = null;  // Riferimento globale all'istanza Chart
+
+    /**
+     * Genera (o aggiorna) il grafico interattivo nella dashboard.
+     * Chiamata da runAnalysis() dopo ogni calcolo.
+     */
+    function renderChart(ir, an) {
+        const canvas = document.getElementById('main-chart');
+        const placeholder = document.getElementById('chart-ph');
+
+        // Mostriamo il canvas e nascondiamo il placeholder
+        canvas.style.display = 'block';
+        placeholder.style.display = 'none';
+
+        // Distruggiamo il grafico precedente se esiste
+        if (mainChartInstance) {
+            mainChartInstance.destroy();
+            mainChartInstance = null;
+        }
+
+        const ctx = canvas.getContext('2d');
+        const lcu = an.context.landedCostPerUnit;
+        const sp = an.context.sellingPrice;
+        const route = PRESET_ROUTES.find(r => r.name === an.context.route);
+
+        // Determiniamo il range dell'asse X (unità)
+        const beps = [an.bep.road, an.bep.rail, an.bep.sea].filter(b => b.success);
+        const maxBep = beps.length > 0 ? Math.max(...beps.map(b => b.bepUnits)) : 50;
+        const maxX = Math.ceil(Math.max(maxBep * 1.6, an.context.unitsToShip * 1.3, 30));
+
+        // Generiamo i data points per ogni curva
+        const labels = [];
+        const roadData = [], railData = [], seaData = [], revenueData = [];
+        const step = Math.max(1, Math.floor(maxX / 80));
+
+        for (let n = 0; n <= maxX; n += step) {
+            labels.push(n);
+            const rC = calculateTotalTransportCost(TRANSPORT_VECTORS.road, route.roadKm, n);
+            const iC = calculateTotalTransportCost(TRANSPORT_VECTORS.rail, route.railKm, n);
+            const sC = calculateTotalTransportCost(TRANSPORT_VECTORS.sea, route.seaKm, n);
+            roadData.push(r2(lcu * n + rC.totalCost));
+            railData.push(r2(lcu * n + iC.totalCost));
+            seaData.push(r2(lcu * n + sC.totalCost));
+            revenueData.push(r2(sp * n));
+        }
+
+        // Costruiamo le annotazioni per i BEP
+        const annotations = {};
+
+        beps.forEach((bep, i) => {
+            const colors = { road: '#FF4444', rail: '#118DFF', sea: '#F2C811' };
+            const c = colors[bep.vectorId] || '#fff';
+
+            // Linea verticale tratteggiata al BEP
+            annotations[`bep_line_${bep.vectorId}`] = {
+                type: 'line',
+                xMin: bep.bepUnitsExact,
+                xMax: bep.bepUnitsExact,
+                borderColor: c,
+                borderWidth: 1.5,
+                borderDash: [6, 4],
+                label: {
+                    display: true,
+                    content: `BEP ${bep.vectorIcon} ${bep.bepUnits}u`,
+                    position: 'start',
+                    backgroundColor: c,
+                    color: '#fff',
+                    font: { size: 9, weight: 'bold', family: 'Inter' },
+                    padding: { x: 5, y: 3 },
+                    borderRadius: 4
+                }
+            };
+
+            // Punto sul grafico al BEP
+            annotations[`bep_point_${bep.vectorId}`] = {
+                type: 'point',
+                xValue: bep.bepUnitsExact,
+                yValue: bep.bepRevenue,
+                radius: 6,
+                backgroundColor: c,
+                borderColor: '#fff',
+                borderWidth: 2
+            };
+        });
+
+        // Linea verticale per il volume corrente dell'utente
+        annotations['current_volume'] = {
+            type: 'line',
+            xMin: an.context.unitsToShip,
+            xMax: an.context.unitsToShip,
+            borderColor: 'rgba(255,255,255,0.3)',
+            borderWidth: 1,
+            borderDash: [3, 3],
+            label: {
+                display: true,
+                content: `📦 ${an.context.unitsToShip}u (tuo volume)`,
+                position: 'end',
+                backgroundColor: 'rgba(255,255,255,0.1)',
+                color: '#e8eaed',
+                font: { size: 9, weight: '600', family: 'Inter' },
+                padding: { x: 5, y: 3 },
+                borderRadius: 4
+            }
+        };
+
+        // Creiamo il grafico
+        mainChartInstance = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: '💰 Ricavo',
+                        data: revenueData,
+                        borderColor: '#00C851',
+                        backgroundColor: 'rgba(0,200,81,0.05)',
+                        borderWidth: 2.5,
+                        fill: false,
+                        tension: 0,
+                        pointRadius: 0,
+                        pointHoverRadius: 5
+                    },
+                    {
+                        label: '🚛 Costo Gomma',
+                        data: roadData,
+                        borderColor: '#FF4444',
+                        backgroundColor: 'rgba(255,68,68,0.05)',
+                        borderWidth: 2,
+                        fill: false,
+                        tension: 0.1,
+                        pointRadius: 0,
+                        pointHoverRadius: 4
+                    },
+                    {
+                        label: '🚂 Costo Treno',
+                        data: railData,
+                        borderColor: '#118DFF',
+                        backgroundColor: 'rgba(17,141,255,0.05)',
+                        borderWidth: 2,
+                        fill: false,
+                        tension: 0.1,
+                        pointRadius: 0,
+                        pointHoverRadius: 4
+                    },
+                    {
+                        label: '🚢 Costo Nave',
+                        data: seaData,
+                        borderColor: '#F2C811',
+                        backgroundColor: 'rgba(242,200,17,0.05)',
+                        borderWidth: 2,
+                        fill: false,
+                        tension: 0.1,
+                        pointRadius: 0,
+                        pointHoverRadius: 4
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    mode: 'index',
+                    intersect: false
+                },
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: {
+                            color: '#9aa0a6',
+                            font: { size: 11, family: 'Inter', weight: '600' },
+                            padding: 14,
+                            usePointStyle: true,
+                            pointStyle: 'circle'
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(10,14,26,0.95)',
+                        titleColor: '#e8eaed',
+                        bodyColor: '#9aa0a6',
+                        borderColor: 'rgba(255,255,255,0.08)',
+                        borderWidth: 1,
+                        padding: 12,
+                        cornerRadius: 8,
+                        titleFont: { size: 12, family: 'Inter', weight: '700' },
+                        bodyFont: { size: 11, family: 'Inter' },
+                        callbacks: {
+                            title: function(items) {
+                                return `📦 ${items[0].label} unità`;
+                            },
+                            label: function(item) {
+                                return `${item.dataset.label}: ${parseFloat(item.raw).toLocaleString('it-IT', {minimumFractionDigits:2})} €`;
+                            },
+                            afterBody: function(items) {
+                                const units = parseFloat(items[0].label);
+                                const rev = sp * units;
+                                const costs = items.slice(1).map(i => parseFloat(i.raw));
+                                const minCost = Math.min(...costs);
+                                const profit = rev - minCost;
+                                return profit >= 0
+                                    ? `\n✅ Profitto migliore: +${profit.toLocaleString('it-IT', {minimumFractionDigits:2})} €`
+                                    : `\n❌ Perdita minima: ${profit.toLocaleString('it-IT', {minimumFractionDigits:2})} €`;
+                            }
+                        }
+                    },
+                    annotation: {
+                        annotations: annotations
+                    }
+                },
+                scales: {
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Unità (pallet)',
+                            color: '#9aa0a6',
+                            font: { size: 11, family: 'Inter', weight: '600' }
+                        },
+                        ticks: {
+                            color: '#6b7280',
+                            font: { size: 10, family: 'Inter' },
+                            maxTicksLimit: 15
+                        },
+                        grid: { color: 'rgba(255,255,255,0.03)' }
+                    },
+                    y: {
+                        title: {
+                            display: true,
+                            text: 'Euro (€)',
+                            color: '#9aa0a6',
+                            font: { size: 11, family: 'Inter', weight: '600' }
+                        },
+                        ticks: {
+                            color: '#6b7280',
+                            font: { size: 10, family: 'Inter' },
+                            callback: function(v) {
+                                return v >= 1000 ? (v/1000).toFixed(0) + 'k' : v;
+                            }
+                        },
+                        grid: { color: 'rgba(255,255,255,0.03)' }
+                    }
+                }
+            }
+        });
+    }
+
+
+    // ═══════════════════════════════════════════════════════════════
+    //  SEZIONE 12: ASSISTENTE AI — LOGICA DI PARSING & HIGHLIGHT (Step 5)
+    // ═══════════════════════════════════════════════════════════════
+
+    /**
+     * Parsing semantico ed elaborazione delle query dell'assistente AI (Step 5)
+     */
+    function processAssistantQuery() {
+        const queryEl = document.getElementById('assistant-query');
+        if (!queryEl) return;
+        const query = queryEl.value.trim().toLowerCase();
+        const responseEl = document.getElementById('assistant-response');
+
+        if (!query) {
+            responseEl.style.display = 'none';
+            return;
+        }
+
+        // Se non è mai stata fatta un'analisi, la eseguiamo in automatico
+        if (!latestAnalysis || !latestImportResult) {
+            runAnalysis();
+        }
+
+        // Se l'analisi fallisce comunque, avvisiamo
+        if (!latestAnalysis || !latestImportResult) {
+            responseEl.innerHTML = `⚠️ Compila prima tutti i parametri e clicca su "Calcola Analisi Completa" per caricare i dati.`;
+            responseEl.style.display = 'block';
+            return;
+        }
+
+        // Resettiamo eventuali evidenziazioni precedenti
+        resetHighlights();
+
+        let responseHtml = "";
+        let matched = false;
+
+        // Regole regex per parsing
+        const rxReset = /reset|azzera|pulisci|cancella|filtri|standard/i;
+        const rxWorst = /peggiore|non conveniente|perdita|meno conveniente|costo maggiore|più caro|caro/i;
+        const rxBest = /migliore|ottimale|più conveniente|consigliato|risparmio/i;
+        const rxDuties = /dazio|tassa|tasse|taric|dogana|doganale|impost/i;
+        const rxBep = /bep|pareggio|break-even|soglia/i;
+        const rxSea = /nave|mare|marittimo|sea|ship/i;
+        const rxRail = /treno|ferrovia|ferroviario|rail|train/i;
+        const rxRoad = /gomma|strada|camion|truck|road/i;
+
+        if (rxReset.test(query)) {
+            responseHtml = `🧹 Evidenziazioni e filtri del grafico ripristinati allo stato iniziale.`;
+            responseEl.className = "assistant-response";
+            matched = true;
+        } 
+        else if (rxWorst.test(query)) {
+            const worstVector = [...latestAnalysis.profitAnalysis].sort((a, b) => a.profit - b.profit)[0];
+            highlightVector(worstVector.vectorId, 'worst');
+            
+            responseHtml = `⚠️ Il vettore <strong>meno conveniente</strong> per questa spedizione (${latestAnalysis.context.unitsToShip} pallet) è <strong>${worstVector.vectorName}</strong>.<br>` +
+                           `• Profitto netto: <strong class="hl-red">${fmt(worstVector.profit)}</strong><br>` +
+                           `• Costo di trasporto: <strong>${fmt(worstVector.totalCost)}</strong> (${worstVector.transitHours}h transito).<br>` +
+                           `<em>Ho evidenziato il vettore in rosso sul grafico e sulle tabelle di confronto.</em>`;
+            responseEl.className = "assistant-response alert-worst";
+            matched = true;
+        }
+        else if (rxBest.test(query)) {
+            const bestVector = latestAnalysis.optimal.optimal;
+            const bestProfit = latestAnalysis.profitAnalysis.find(p => p.vectorId === bestVector.vectorId);
+            
+            highlightVector(bestVector.vectorId, 'best');
+            highlightKPICard('card-vector', 'rgba(0, 200, 81, 0.4)', 'var(--green)');
+            
+            responseHtml = `🏆 Il vettore <strong>ottimale (più conveniente)</strong> per questa spedizione è <strong>${bestVector.vectorName}</strong>.<br>` +
+                           `• Profitto stimato: <strong class="hl-green">${fmt(bestProfit.profit)}</strong><br>` +
+                           `• Costo sbarcato per unità: <strong>${fmt(bestVector.costPerUnit)}</strong>.<br>` +
+                           `• Risparmio rispetto al 2° vettore: <strong>${fmt(latestAnalysis.optimal.savings)}</strong>.<br>` +
+                           `<em>Ho evidenziato in verde la card del vettore ottimale, la riga di confronto e la curva nel grafico.</em>`;
+            responseEl.className = "assistant-response alert-best";
+            matched = true;
+        }
+        else if (rxDuties.test(query)) {
+            highlightKPICard('card-duties', 'rgba(242, 200, 17, 0.4)', 'var(--gold)');
+            
+            const taricEl = document.getElementById('in-taric');
+            if (taricEl) {
+                taricEl.style.borderColor = 'var(--gold)';
+                taricEl.style.boxShadow = '0 0 10px var(--gold-glow)';
+            }
+
+            const c = latestImportResult.cascade;
+            const m = latestImportResult.metadata;
+            
+            responseHtml = `🏛️ <strong>Analisi Oneri Doganali:</strong><br>` +
+                           `• Codice TARIC: <strong>${latestImportResult.inputs.taricCode}</strong> (${m.description})<br>` +
+                           `• Dazio Erga Omnes: <strong>${(m.dutyRate * 100).toFixed(1)}%</strong> → Dazio: <strong class="hl-gold">${fmt(c.customsDuty)}</strong><br>` +
+                           `• IVA all'Importazione (in Italia): <strong>${m.vatRate}%</strong> (su base imponibile ${fmt(c.vatBase)}) → IVA: <strong class="hl-gold">${fmt(c.importVAT)}</strong><br>` +
+                           `• Totale Oneri Doganali: <strong>${fmt(latestImportResult.analytics.totalDuties)}</strong> (${latestImportResult.analytics.fiscalImpact}% del valore FOB).<br>` +
+                           `<em>Ho evidenziato la card del dazio e il selettore TARIC.</em>`;
+            responseEl.className = "assistant-response alert-duties";
+            matched = true;
+        }
+        else if (rxBep.test(query)) {
+            highlightKPICard('card-bep', 'rgba(17, 141, 255, 0.4)', 'var(--blue)');
+            
+            const r = latestAnalysis.bep.road;
+            const i = latestAnalysis.bep.rail;
+            const s = latestAnalysis.bep.sea;
+            
+            responseHtml = `📊 <strong>Analisi Break-Even Point (Soglie di pareggio):</strong><br>` +
+                           `• 🚛 <strong>Gomma:</strong> ${r.success ? `Pareggio a <strong>${r.bepUnits} unità</strong> (Fatturato: ${fmt(r.bepRevenue)})` : `<span class="hl-red">Nessun pareggio possibile</span>`}<br>` +
+                           `• 🚂 <strong>Treno:</strong> ${i.success ? `Pareggio a <strong>${i.bepUnits} unità</strong> (Fatturato: ${fmt(i.bepRevenue)})` : `<span class="hl-red">Nessun pareggio possibile</span>`}<br>` +
+                           `• 🚢 <strong>Nave:</strong> ${s.success ? `Pareggio a <strong>${s.bepUnits} unità</strong> (Fatturato: ${fmt(s.bepRevenue)})` : `<span class="hl-red">Nessun pareggio possibile</span>`}<br>` +
+                           `<em>Ho evidenziato la card del BEP e marcato i punti di pareggio verticali sul grafico.</em>`;
+            responseEl.className = "assistant-response alert-bep";
+            matched = true;
+        }
+        else if (rxSea.test(query)) {
+            const seaAna = latestAnalysis.profitAnalysis.find(p => p.vectorId === 'sea');
+            const seaComp = latestAnalysis.optimal.all.find(v => v.vectorId === 'sea');
+            
+            highlightVector('sea', 'info-sea');
+            
+            responseHtml = `🚢 <strong>Vettore Nave (Cabotaggio Shenzhen → Palermo):</strong><br>` +
+                           `• Costo Totale: <strong>${fmt(seaAna.totalCost)}</strong> (${fmt(seaComp.costPerUnit)}/u)<br>` +
+                           `• Tempo Transito: <strong>${seaAna.transitHours} ore</strong><br>` +
+                           `• Profittabilità: <strong class="${seaAna.isProfitable ? 'hl-green' : 'hl-red'}">${fmt(seaAna.profit)}</strong> (${seaAna.isProfitable ? 'In profitto' : 'In perdita'})<br>` +
+                           `• Emissioni CO₂: <strong>${seaComp.co2Kg.toFixed(0)} kg</strong> (il più ecologico).<br>` +
+                           `<em>Ho evidenziato la curva gialla sul grafico e la riga della nave.</em>`;
+            responseEl.className = "assistant-response alert-sea";
+            matched = true;
+        }
+        else if (rxRail.test(query)) {
+            const railAna = latestAnalysis.profitAnalysis.find(p => p.vectorId === 'rail');
+            const railComp = latestAnalysis.optimal.all.find(v => v.vectorId === 'rail');
+            
+            highlightVector('rail', 'info-rail');
+            
+            responseHtml = `🚂 <strong>Vettore Treno (Intermodale Verona → Palermo):</strong><br>` +
+                           `• Costo Totale: <strong>${fmt(railAna.totalCost)}</strong> (${fmt(railComp.costPerUnit)}/u)<br>` +
+                           `• Tempo Transito: <strong>${railAna.transitHours} ore</strong><br>` +
+                           `• Profittabilità: <strong class="${railAna.isProfitable ? 'hl-green' : 'hl-red'}">${fmt(railAna.profit)}</strong> (${railAna.isProfitable ? 'In profitto' : 'In perdita'})<br>` +
+                           `• Emissioni CO₂: <strong>${railComp.co2Kg.toFixed(0)} kg</strong>.<br>` +
+                           `<em>Ho evidenziato la curva blu sul grafico e la riga del treno.</em>`;
+            responseEl.className = "assistant-response alert-rail";
+            matched = true;
+        }
+        else if (rxRoad.test(query)) {
+            const roadAna = latestAnalysis.profitAnalysis.find(p => p.vectorId === 'road');
+            const roadComp = latestAnalysis.optimal.all.find(v => v.vectorId === 'road');
+            
+            highlightVector('road', 'info-road');
+            
+            responseHtml = `🚛 <strong>Vettore Gomma (FTL Verona → Palermo):</strong><br>` +
+                           `• Costo Totale: <strong>${fmt(roadAna.totalCost)}</strong> (${fmt(roadComp.costPerUnit)}/u)<br>` +
+                           `• Tempo Transito: <strong>${roadAna.transitHours} ore</strong> (il più veloce)<br>` +
+                           `• Profittabilità: <strong class="${roadAna.isProfitable ? 'hl-green' : 'hl-red'}">${fmt(roadAna.profit)}</strong> (${roadAna.isProfitable ? 'In profitto' : 'In perdita'})<br>` +
+                           `• Emissioni CO₂: <strong>${roadComp.co2Kg.toFixed(0)} kg</strong> (il più inquinante).<br>` +
+                           `<em>Ho evidenziato la curva rossa sul grafico e la riga della gomma.</em>`;
+            responseEl.className = "assistant-response alert-road";
+            matched = true;
+        }
+
+        if (!matched) {
+            responseHtml = `🤔 <em>Non ho compreso il comando.</em> Prova a chiedermi:<br>` +
+                           `• "Evidenzia dazio maggiore"<br>` +
+                           `• "Mostrami la tratta non conveniente"<br>` +
+                           `• "Dettagli nave" o "Dettagli treno"<br>` +
+                           `• "Qual è la soglia bep?"`;
+            responseEl.className = "assistant-response alert-unknown";
+        }
+
+        responseEl.innerHTML = responseHtml;
+        responseEl.style.display = 'block';
+    }
+
+    function applyQuery(text) {
+        const queryEl = document.getElementById('assistant-query');
+        if (queryEl) {
+            queryEl.value = text;
+            processAssistantQuery();
+        }
+    }
+
+    function highlightKPICard(cardId, glowColor, borderColor) {
+        const card = document.getElementById(cardId);
+        if (card) {
+            card.classList.add('kpi-highlight-pulse');
+            card.style.setProperty('--glow-color', glowColor);
+            card.style.setProperty('--glow-border', borderColor);
+        }
+    }
+
+    function highlightVector(vectorId, type) {
+        const vrow = document.getElementById(`vrow-${vectorId}`);
+        const pbar = document.getElementById(`profit-bar-${vectorId}`);
+
+        const colors = {
+            worst: { border: 'var(--red)', glow: 'rgba(255, 68, 68, 0.4)', bg: 'rgba(255, 68, 68, 0.05)' },
+            best: { border: 'var(--green)', glow: 'rgba(0, 200, 81, 0.4)', bg: 'rgba(0, 200, 81, 0.05)' },
+            'info-sea': { border: 'var(--gold)', glow: 'rgba(242, 200, 17, 0.4)', bg: 'rgba(242, 200, 17, 0.05)' },
+            'info-rail': { border: 'var(--blue)', glow: 'rgba(17, 141, 255, 0.4)', bg: 'rgba(17, 141, 255, 0.05)' },
+            'info-road': { border: 'var(--red)', glow: 'rgba(255, 68, 68, 0.4)', bg: 'rgba(255, 68, 68, 0.05)' }
+        };
+
+        const config = colors[type] || colors.best;
+
+        if (vrow) {
+            vrow.classList.add('vrow-highlight-pulse');
+            vrow.style.setProperty('--glow-border', config.border);
+            vrow.style.setProperty('--glow-color', config.glow);
+            vrow.style.setProperty('--glow-bg', config.bg);
+        }
+
+        if (pbar) {
+            const fill = pbar.querySelector('.profit-bar-fill');
+            if (fill) {
+                fill.classList.add('profit-highlight-pulse');
+                fill.style.setProperty('--glow-color', config.glow);
+            }
+        }
+
+        highlightChartDataset(vectorId);
+    }
+
+    function highlightChartDataset(vectorId) {
+        if (!mainChartInstance) return;
+
+        const datasetIndices = { road: 1, rail: 2, sea: 3 };
+        const targetIdx = datasetIndices[vectorId];
+        if (targetIdx === undefined) return;
+
+        resetChartDatasetStyles();
+
+        mainChartInstance.data.datasets.forEach((ds, idx) => {
+            if (idx === 0) {
+                ds.borderWidth = 1.5;
+                ds.borderColor = 'rgba(0, 200, 81, 0.4)';
+            } else if (idx === targetIdx) {
+                ds.borderWidth = 4.5;
+            } else {
+                ds.borderWidth = 1;
+                if (idx === 1) ds.borderColor = 'rgba(255, 68, 68, 0.1)';
+                if (idx === 2) ds.borderColor = 'rgba(17, 141, 255, 0.1)';
+                if (idx === 3) ds.borderColor = 'rgba(242, 200, 17, 0.1)';
+            }
+        });
+
+        mainChartInstance.update();
+    }
+
+    function resetChartDatasetStyles() {
+        if (!mainChartInstance) return;
+
+        const defaultWidths = [2.5, 2, 2, 2];
+        const defaultColors = ['#00C851', '#FF4444', '#118DFF', '#F2C811'];
+
+        mainChartInstance.data.datasets.forEach((ds, idx) => {
+            ds.borderWidth = defaultWidths[idx];
+            ds.borderColor = defaultColors[idx];
+        });
+
+        mainChartInstance.update();
+    }
+
+    function resetHighlights() {
+        document.querySelectorAll('.kpi').forEach(el => {
+            el.classList.remove('kpi-highlight-pulse');
+            el.style.removeProperty('--glow-color');
+            el.style.removeProperty('--glow-border');
+        });
+
+        document.querySelectorAll('.vrow').forEach(el => {
+            el.classList.remove('vrow-highlight-pulse');
+            el.style.removeProperty('--glow-color');
+            el.style.removeProperty('--glow-border');
+            el.style.removeProperty('--glow-bg');
+        });
+
+        document.querySelectorAll('.profit-bar-fill').forEach(el => {
+            el.classList.remove('profit-highlight-pulse');
+            el.style.removeProperty('--glow-color');
+        });
+
+        resetChartDatasetStyles();
+        
+        const taricEl = document.getElementById('in-taric');
+        if (taricEl) {
+            taricEl.style.boxShadow = '';
+            taricEl.style.borderColor = '';
+        }
+    }
+
+
+    // ═══════════════════════════════════════════════════════════════
+    //  INIZIALIZZAZIONE
+    // ═══════════════════════════════════════════════════════════════
+    window.addEventListener('DOMContentLoaded', () => {
+        populateUI();
+        setupDragDrop();
+
+        const queryInput = document.getElementById('assistant-query');
+        if (queryInput) {
+            queryInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    processAssistantQuery();
+                }
+            });
+        }
+    });
+
+</script>
+</body>
+</html>

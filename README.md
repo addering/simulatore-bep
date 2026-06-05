@@ -6,6 +6,7 @@
 
 [![BEP Simulator](https://img.shields.io/badge/🚀_Tool_1-BEP_Simulator-118DFF?style=for-the-badge)](https://addering.github.io/simulatore-bep/)
 [![Customs Calculator](https://img.shields.io/badge/🛃_Tool_2-Customs_Calculator-F2C811?style=for-the-badge)](https://addering.github.io/simulatore-bep/dogana.html)
+[![Control Tower](https://img.shields.io/badge/🗼_Tool_3-Control_Tower_4.0-FF8C42?style=for-the-badge)](https://addering.github.io/simulatore-bep/tower.html)
 [![License: MIT](https://img.shields.io/badge/License-MIT-brightgreen?style=for-the-badge)](LICENSE)
 
 <br>
@@ -39,6 +40,7 @@ This repo currently contains **two fully functional tools**, both running as sta
 |---|------|-----------|-------------|
 | 1 | 📊 **Break-Even Point Simulator** | [**Launch →**](https://addering.github.io/simulatore-bep/) | Compare road vs. intermodal transport costs and find the exact distance where intermodal becomes cheaper |
 | 2 | 🛃 **Customs Duties Calculator** | [**Launch →**](https://addering.github.io/simulatore-bep/dogana.html) | Simulate the full cascade of Extra-EU import duties (CIF → Duty → Progressive VAT → Landed Cost) with TARIC code verification |
+| 3 | 🗼 **Logistics Control Tower 4.0** | [**Launch →**](https://addering.github.io/simulatore-bep/tower.html) | Unified decision-making cockpit merging Extra-EU customs calculation, multi-vector transport simulation, and BEP with interactive charts and local AI process assistant |
 
 Both tools share the same **dark-mode glassmorphism design language** and are fully responsive across desktop, tablet, and mobile.
 
@@ -139,9 +141,51 @@ User enters 10-digit code
 └─────────────────────────┘
 ```
 
+`HTML5` · `CSS3 (Custom Properties, Glassmorphism, Keyframe Animations)` · `JavaScript ES6 (async/await, Fetch API)` · `Inter Font (Google Fonts)`
+
+---
+
+## 🗼 Tool 3 — Logistics Control Tower 4.0
+
+### What It Does
+
+The **Logistics Control Tower 4.0** is an enterprise-grade Decision Support System (DSS) that fuses **international customs compliance** with **domestic transport cost optimization**. It simulates a complete import supply chain flow: import of goods from a third country (Extra-EU) to an EU port/hub of entry, followed by secondary national distribution to the final destination via three alternative vectors.
+
+### The Flow Architecture (Fusing Customs & Logistics)
+
+This tool merges the mathematical models of **Tool 1** and **Tool 2** into a single deterministic engine:
+
+1. **Trade compliance tier:** The user enters the cargo's commercial and transport values. The engine runs the cascading EU duty and VAT calculations based on the selected goods' TARIC code.
+2. **Landed Cost distribution:** The resulting total landed cost is divided by the number of units to obtain the exact **Landed Cost per Unit** (the fiscal base price before domestic distribution).
+3. **Multi-vector domestic routing:** The cargo is routed from the port of arrival to its destination. The engine dynamically calculates the distribution costs for three transport methods:
+   - 🚛 **Gomma (FTL):** High variable cost per km, low fixed costs, fastest transit time.
+   - 🚂 **Intermodale Treno:** Medium fixed cost, low variable cost, optimized for medium/long haul.
+   - 🚢 **Cabotaggio Nave:** High fixed costs (handling/port), extremely low variable cost, optimized for massive volumes or island routing.
+4. **Profitability & BEP validation:** The engine compares the total distribution and landed costs against local market selling prices, identifying the break-even volume for each vector and recommending the optimal transportation mode.
+
+### Features
+
+| Feature | Description |
+|---------|-------------|
+| 📂 **CSV Drag-and-Drop** | Upload raw order/cargo CSV files directly to populate inputs instantly. |
+| 🏛️ **Cascading Tax Engine** | Direct integration of the 6-step import tax cascade based on Italian VAT rules and TARIC rates. |
+| 🔀 **Multi-Vector BEP Analysis** | Simultaneously computes and compares costs, transits, and CO₂ emissions for all three transport modes. |
+| 📈 **Chart.js Interactive Curves** | Visualizes the Revenue line vs. the three cost curves with vertical annotations for each vector's Break-Even Point. |
+| ✦ **AI Process Assistant** | An offline, regex-powered semantic command bar. Ask questions like *"Mostrami tratta non conveniente"* or *"Evidenzia dazio maggiore"* to trigger dynamic UI glows and chart highlighting. |
+| 📜 **Audit Trail Terminal** | A live technical terminal log documenting the math, tax calculations, and logistical steps of the workflow. |
+
+### Semantic AI Queries Supported
+
+The local AI assistant parses natural language queries in Italian and English:
+- **Worst vector:** *"Tratta peggiore"*, *"non conveniente"*, *"perdita"* (highlights the worst-performing vector on the charts and rows).
+- **Optimal vector:** *"Qual è il vettore ottimale"*, *"migliore"*, *"conveniente"* (highlights the optimal vector card and chart curve).
+- **Duties details:** *"Evidenzia dazio maggiore"*, *"tasse"*, *"dogana"* (highlights the Duties KPI card and displays a detailed breakdown).
+- **BEP limits:** *"Mostra BEP"*, *"punto di pareggio"*, *"soglia"* (highlights the BEP card and vertical markers).
+- **Specific modes:** *"nave"*, *"treno"*, *"gomma"* (isolates the selected vector on the comparison chart).
+
 ### Tech Stack
 
-`HTML5` · `CSS3 (Custom Properties, Glassmorphism, Keyframe Animations)` · `JavaScript ES6 (async/await, Fetch API)` · `Inter Font (Google Fonts)`
+`HTML5` · `CSS3 (Custom Properties, Glassmorphism, Keyframe Animations)` · `JavaScript ES6` · `Chart.js` · `Chartjs-plugin-annotation` · `Inter Font (Google Fonts)`
 
 ---
 
@@ -168,6 +212,7 @@ Just click and go — nothing to install:
 
 - 📊 **BEP Simulator →** [https://addering.github.io/simulatore-bep/](https://addering.github.io/simulatore-bep/)
 - 🛃 **Customs Calculator →** [https://addering.github.io/simulatore-bep/dogana.html](https://addering.github.io/simulatore-bep/dogana.html)
+- 🗼 **Control Tower 4.0 →** [https://addering.github.io/simulatore-bep/tower.html](https://addering.github.io/simulatore-bep/tower.html)
 
 ### Option 2: Run Locally
 
@@ -179,6 +224,7 @@ git clone https://github.com/addering/simulatore-bep.git
 cd simulatore-bep
 open index.html        # BEP Simulator
 open dogana.html       # Customs Calculator
+open tower.html        # Logistics Control Tower 4.0
 ```
 
 No server, no `npm install`, no build step. Just HTML files that run in any modern browser.
@@ -191,6 +237,7 @@ No server, no `npm install`, no build step. Just HTML files that run in any mode
 simulatore-bep/
 ├── index.html          # 📊 Break-Even Point Simulator (Chart.js powered)
 ├── dogana.html         # 🛃 Customs Duties Calculator (TARIC + cascade engine)
+├── tower.html          # 🗼 Logistics Control Tower 4.0 (Unified Dashboard + AI Assistant)
 ├── README.md           # 📖 You are here
 └── LICENSE             # 📄 MIT License
 ```
@@ -207,6 +254,7 @@ I'm actively expanding this toolkit. Here's what's in the pipeline:
 |------|--------|-------------|
 | 📊 Break-Even Simulator | ✅ **Released** | Road vs. intermodal cost comparison |
 | 🛃 Customs Duties Calculator | ✅ **Released** | Extra-EU import duty cascade simulation |
+| 🗼 Logistics Control Tower 4.0 | ✅ **Released** | Fused customs compliance and transport optimization |
 | 📦 Warehouse Layout Optimizer | 🔧 In Progress | Storage allocation and picking route optimization |
 | 🚛 Fleet TCO Calculator | 📋 Planned | Total Cost of Ownership analysis for fleet decisions |
 | 🌍 Carbon Footprint Estimator | 📋 Planned | CO₂ emissions comparison across transport modes |
