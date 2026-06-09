@@ -5,6 +5,10 @@
   "main": "main.js",
   "author": "Luca Reina",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/addering/simulatore-bep.git"
+  },
   "scripts": {
     "start": "electron .",
     "build:mac": "electron-builder --mac dir",
