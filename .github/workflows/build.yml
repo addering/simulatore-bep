@@ -3,53 +3,64 @@ name: Build ProntoQuota
 on:
   push:
     tags:
-      - 'v*'          # Si attiva quando pubblichi un tag tipo v1.0.0
-  workflow_dispatch:  # Permette di avviarlo manualmente da GitHub
+      - 'v*'
+  workflow_dispatch:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   build-mac:
     name: Build macOS
     runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: electron-app
     steps:
       - name: Checkout codice
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Setup Node.js 24
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
 
       - name: Installa dipendenze
-        run: cd electron-app && npm install
+        run: npm install
 
-      - name: Build macOS (.app + DMG)
-        run: cd electron-app && npx electron-builder --mac dmg
+      - name: Build macOS DMG
+        run: npx electron-builder --mac dmg --arm64
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          npm_config_python: python3
 
       - name: Carica artefatto Mac
         uses: actions/upload-artifact@v4
         with:
           name: ProntoQuota-Mac
           path: electron-app/dist/*.dmg
+          if-no-files-found: error
 
   build-windows:
     name: Build Windows
     runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: electron-app
     steps:
       - name: Checkout codice
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Setup Node.js 24
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
 
       - name: Installa dipendenze
-        run: cd electron-app && npm install
+        run: npm install
 
-      - name: Build Windows (.exe installer)
-        run: cd electron-app && npx electron-builder --win nsis
+      - name: Build Windows NSIS installer
+        run: npx electron-builder --win nsis --x64
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -58,12 +69,15 @@ jobs:
         with:
           name: ProntoQuota-Windows
           path: electron-app/dist/*.exe
+          if-no-files-found: error
 
   release:
     name: Pubblica Release
     needs: [build-mac, build-windows]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
+    permissions:
+      contents: write
     steps:
       - name: Scarica artefatto Mac
         uses: actions/download-artifact@v4
@@ -83,12 +97,12 @@ jobs:
           name: ProntoQuota ${{ github.ref_name }}
           body: |
             ## 🎉 ProntoQuota ${{ github.ref_name }}
-            
+
             ### Download
-            - 🍎 **Mac** → scarica il file `.dmg`
-            - 🪟 **Windows** → scarica il file `.exe`
-            
-            > Al primo avvio su Mac: tasto destro → Apri
+            - 🍎 **Mac** → scarica il file `.dmg`, aprilo e trascina l'app in Applicazioni
+            - 🪟 **Windows** → scarica il file `.exe` ed esegui il wizard di installazione
+
+            > Al primo avvio su Mac: tasto destro → Apri (bypassa il blocco Apple)
           files: |
             dist-mac/*.dmg
             dist-win/*.exe
