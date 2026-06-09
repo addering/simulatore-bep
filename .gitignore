@@ -1,0 +1,6 @@
+
+# Electron build output
+electron-app/node_modules/
+electron-app/dist/
+electron-app/icons/icon.iconset/
+electron-app/icons/icon_1024.png

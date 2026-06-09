@@ -1,0 +1,41 @@
+{
+  "name": "prontoquota",
+  "version": "1.0.0",
+  "description": "ProntoQuota – Generatore di Preventivi Pro",
+  "main": "main.js",
+  "author": "Luca Reina",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "build:mac": "electron-builder --mac dir",
+    "build:win": "electron-builder --win dir",
+    "build:all": "electron-builder --mac dir --win dir"
+  },
+  "build": {
+    "appId": "com.lucarein.prontoquota",
+    "productName": "ProntoQuota",
+    "copyright": "Copyright © 2026 Luca Reina",
+    "files": [
+      "main.js",
+      "preventivo.html",
+      "Prontoquota_logo.png"
+    ],
+    "mac": {
+      "category": "public.app-category.business",
+      "icon": "icons/icon.icns",
+      "target": [
+        { "target": "dir" }
+      ]
+    },
+    "win": {
+      "icon": "icons/icon.png",
+      "target": [
+        { "target": "dir" }
+      ]
+    }
+  },
+  "devDependencies": {
+    "electron": "^31.0.0",
+    "electron-builder": "^24.13.3"
+  }
+}
