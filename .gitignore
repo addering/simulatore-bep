@@ -1,4 +1,7 @@
 
+# === FILE PROTETTI — non pubblicare nella repo pubblica ===
+preventivo.html
+
 # Electron build output
 electron-app/node_modules/
 electron-app/dist/
